@@ -1,0 +1,10 @@
+API_KEY = "your_api_key_here"
+DATA_SOURCE = "NSE India"
+TIME_FRAME = "daily"
+MIDCAP_THRESHOLD = 1000000000  # Example threshold for midcap stocks
+ADX_THRESHOLD = 30
+RSI_THRESHOLD = 50
+EMA_PERIODS = [5, 13, 26]
+BOLLINGER_WINDOW = 20
+VOLUME_WINDOW = 20
+MACD_TIME_FRAME = "weekly"
