@@ -1,5 +1,10 @@
-import React, { useState } from "react";
-import axios from 'axios';
+import React, { useState, useEffect } from "react";
+import axios from "axios";
+import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
+import { Box, Button, MenuItem, Select, TextField } from '@mui/material';
+import SaveIcon from '@mui/icons-material/Save';
+import DeleteIcon from '@mui/icons-material/Delete';
+// import axios from 'axios';
 // Import UI components from shadcn/ui, react-hook-form, framer-motion as needed
 
 const initialEntry = {
@@ -17,11 +22,74 @@ const initialEntry = {
   remarks: ""
 };
 
+import { useNavigate } from "react-router-dom";
+
 export default function AlgoTradeUI() {
+  const navigate = useNavigate();
   const [capital, setCapital] = useState(100000);
   const [risk, setRisk] = useState(2);
   const [diversification, setDiversification] = useState(5);
+  const [roiLoaded, setRoiLoaded] = useState(false);
   const [entries, setEntries] = useState([initialEntry]);
+  const [accessToken, setAccessToken] = useState(() => localStorage.getItem("accessToken") || "");
+  const [user, setUser] = useState(() => {
+    const stored = localStorage.getItem("kiteUser");
+    return stored ? JSON.parse(stored) : null;
+  });
+
+  // On mount, check for request_token in URL and call generate-token API
+  // On mount: handle request_token and fetch trades for user
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requestToken = params.get("request_token");
+    if (requestToken) {
+      axios.post("http://localhost:8000/api/generate-token/", { request_token: requestToken })
+        .then(res => {
+          setAccessToken(res.data.access_token);
+          localStorage.setItem("accessToken", res.data.access_token);
+          if (res.data.user) {
+            setUser(res.data.user);
+            localStorage.setItem("kiteUser", JSON.stringify(res.data.user));
+          }
+          params.delete("request_token");
+          const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : "");
+          window.history.replaceState({}, "", newUrl);
+          window.location.replace("/trade");
+        })
+        .catch(err => {
+          setAccessToken("Failed to fetch access token");
+        });
+    } else {
+      // If user is already set, fetch trades and ROI for user
+      const kiteUser = user || (localStorage.getItem("kiteUser") ? JSON.parse(localStorage.getItem("kiteUser")) : null);
+      if (kiteUser && kiteUser.user_id) {
+        axios.get(`http://localhost:8000/api/trades/?user_id=${kiteUser.user_id}`)
+          .then(res => {
+            if (Array.isArray(res.data) && res.data.length > 0) {
+              setEntries(res.data);
+            }
+          })
+          .catch(err => {
+            window.location.replace('/');
+          });
+        // Fetch user_roi for this user and update summary fields
+        if (!roiLoaded) {
+          axios.get(`http://localhost:8000/api/user_roi/?user_id=${kiteUser.user_id}`)
+            .then(res => {
+              if (res.data && typeof res.data === 'object') {
+                // Update all summary fields except user
+                if (res.data.total_capital !== undefined) setCapital(Number(res.data.total_capital));
+                if (res.data.risk !== undefined) setRisk(Number(res.data.risk));
+                if (res.data.diversification !== undefined) setDiversification(Number(res.data.diversification));
+                // You can add more fields if you want to sync more
+              }
+              setRoiLoaded(true);
+            })
+            .catch(() => setRoiLoaded(true));
+        }
+      }
+    }
+  }, [user, roiLoaded]);
 
   // Calculated fields
   const riskPerTrade = capital * risk / 100;
@@ -29,7 +97,44 @@ export default function AlgoTradeUI() {
   const investmentPerTrade = capital / diversification;
 
   // Add row handler
-  const handleAddRow = () => setEntries([...entries, initialEntry]);
+  // Helper to compute all derived fields for a row
+  const computeRow = (row) => {
+    const cmp = Number(row.cmp) || 0;
+    const slp = Number(row.slp) || 0;
+    const tgtp = Number(row.tgtp) || 0;
+    const sb = Number(row.sb) || 0;
+    const sl = cmp - slp;
+    const tgt = tgtp - cmp;
+    const invested = cmp * sb;
+    let booked = '';
+    if (row.pl === 'Profit') booked = ((cmp + tgt) * sb - invested).toFixed(2);
+    else if (row.pl === 'Loss') booked = ((cmp - sl) * sb - invested).toFixed(2);
+    else booked = '';
+    let rr = '';
+    if (row.pl === 'Profit' && sl !== 0 && sb !== 0) rr = ((booked / sb) / sl).toFixed(2);
+    const stb_sl = sl !== 0 ? Math.floor(riskPerTrade / sl) : 0;
+    const stb_ipt = cmp !== 0 ? Math.floor(investmentPerTrade / cmp) : 0;
+    let stb = '';
+    if (stb_sl > 0 && stb_ipt > 0) stb = Math.min(stb_sl, stb_ipt).toString();
+    else if (stb_sl > 0) stb = stb_sl.toString();
+    else if (stb_ipt > 0) stb = stb_ipt.toString();
+    const percent_pl = invested !== 0 ? ((booked / invested) * 100).toFixed(2) : '';
+    return {
+      ...row,
+      sl: sl.toFixed(2),
+      tgt: tgt.toFixed(2),
+      stb_sl,
+      stb_ipt,
+      stb: stb ? Number(stb) : 0,
+      invested: invested.toFixed(2),
+      booked: booked ? Number(booked) : 0,
+      rr: rr ? Number(rr) : 0,
+      percent_pl: percent_pl ? Number(percent_pl) : 0,
+    };
+  };
+
+  // Add row handler (ensure computed fields are set)
+  const handleAddRow = () => setEntries([...entries, computeRow(initialEntry)]);
 
   // Helper for Tenure calculation
   const getTenure = (entry, exit) => {
@@ -44,6 +149,12 @@ export default function AlgoTradeUI() {
     const exitDate = new Date(exit);
     return Math.ceil((exitDate - entryDate) / (1000 * 60 * 60 * 24));
   };
+
+  // Ensure all entries always have computed fields populated
+  useEffect(() => {
+    setEntries((prev) => prev.map(computeRow));
+    // eslint-disable-next-line
+  }, []);
 
   // Summary calculations (must be after all useState hooks and before return)
   let investedSum = 0, monthlyPLTotal = 0, taxPL = 0, donation = 0, monthlyGain = 0, monthlyGainPercent = 0;
@@ -96,6 +207,8 @@ export default function AlgoTradeUI() {
   };
 
   const handleSaveRow = async (row, index) => {
+    // Get user_id from user state (Kite user_id or map to your backend user)
+    const user_id = user && user.user_id ? user.user_id : null;
     // Always use the latest user input from entries[index]
     const latest = entries[index];
     const cmp = Number(latest.cmp) || 0;
@@ -159,6 +272,7 @@ export default function AlgoTradeUI() {
       booked: booked ? Number(booked) : 0,
       rr: rr ? Number(rr) : 0,
       tenure: tenure ? parseInt(tenure) : null,
+      user_id: user_id,
     };
     try {
       let response;
@@ -170,14 +284,24 @@ export default function AlgoTradeUI() {
       const updated = [...entries];
       updated[index] = { ...row, ...response.data };
       setEntries(updated);
-      alert('Row saved successfully!');
+      alert(`Row saved successfully! ${JSON.stringify(response.data)}`);
     } catch (error) {
       alert('Failed to save row.');
     }
   };
+
+  //  #TODO: code to list the all the trade
+  // TODO: Rich the UI with scrollbar
+  // TODO: Create gitlab for. 
+
   // Render
   return (
     <div className="min-h-screen bg-gray-50 p-8">
+      <div className="flex items-center mb-4">
+        {user && user.user_id && (
+          <span className="text-lg font-semibold">Hello {user.user_shortname || user.user_id}!</span>
+        )}
+      </div>
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Top summary and input fields in table format */}
         <div className="bg-white rounded-lg shadow p-6">
@@ -231,117 +355,171 @@ export default function AlgoTradeUI() {
             <h2 className="text-xl font-bold">Trade Entries</h2>
             <button className="btn btn-primary" onClick={handleAddRow}>Add Trade Entry</button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="table w-full">
+          <div className="overflow-x-auto" style={{ maxWidth: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table className="table min-w-[1200px] w-full">
               <thead>
-                <tr className="bg-gray-200 text-sm font-semibold">
+                <tr>
                   <th>#</th>
                   <th>Stock</th>
                   <th>CMP</th>
                   <th>SLP</th>
                   <th>TGTP</th>
-                  <th title="Stop Loss = CMP - SLP">SL</th>
-                  <th title="Target = TGTP - CMP">TGT</th>
-                  <th title="Stocks to buy based on Stop Loss = Risk/Trade / SL">STB-SL</th>
-                  <th title="Stocks to buy based on Investment/Trade = Investment/Trade / CMP">STB-IPT</th>
-                  <th title="Stocks to buy = Min(STB-SL, STB-IPT)">STB</th>
+                  <th>SL</th>
+                  <th>TGT</th>
+                  <th>STB-SL</th>
+                  <th>STB-IPT</th>
+                  <th>STB</th>
                   <th>SB</th>
-                  <th title="Invested Amount = CMP * SB">Invested</th>
+                  <th>Invested</th>
                   <th>RSI</th>
                   <th>Candle</th>
                   <th>Volume</th>
-                  <th title="Profit/Loss?">P/L</th>
+                  <th>P/L</th>
                   <th>Entry</th>
                   <th>Exit</th>
-                  <th title="Booked = (CMP + TGT) * SB - Invested (Profit), (CMP - SL) * SB - Invested (Loss)">Booked</th>
-                  <th title="Risk to Reward Ratio = (Booked / SB) / SL (if Profit)">r:R</th>
-                  <th title="Tenure in days">Tenure</th>
+                  <th>Booked</th>
+                  <th>r:R</th>
+                  <th>Tenure</th>
                   <th>Remarks</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {entries.map((row, idx) => {
-                  // Calculated fields
-                  const cmp = Number(row.cmp) || 0;
-                  const slp = Number(row.slp) || 0;
-                  const tgtp = Number(row.tgtp) || 0;
-                  const sb = Number(row.sb) || 0;
-                  const sl = cmp - slp;
-                  const tgt = tgtp - cmp;
-                  const stb_sl = sl !== 0 ? Math.floor(riskPerTrade / sl) : 0;
-                  const stb_ipt = cmp !== 0 ? Math.floor(investmentPerTrade / cmp) : 0;
-                  let stb = '';
-                  if (stb_sl > 0 && stb_ipt > 0) stb = Math.min(stb_sl, stb_ipt).toString();
-                  else if (stb_sl > 0) stb = stb_sl.toString();
-                  else if (stb_ipt > 0) stb = stb_ipt.toString();
-                  // SB is editable, Invested updates when SB is entered
-                  const invested = cmp * (Number(row.sb) || 0);
-                  const pl = row.pl;
-                  let booked = "";
-                  if (pl === "Profit") booked = ((cmp + tgt) * (Number(row.sb) || 0) - invested).toFixed(2);
-                  else if (pl === "Loss") booked = ((cmp - sl) * (Number(row.sb) || 0) - invested).toFixed(2);
-                  else booked = "";
-                  const rr = (pl === "Profit" && sl !== 0 && (Number(row.sb) || 0) !== 0) ? ((booked / (Number(row.sb) || 0)) / sl).toFixed(2) : "";
-                  const tenure = getTenure(row.entry_date, row.exit_date);
-
-                  // Handler to update entry fields
-                  const handleEntryChange = (field, value) => {
-                    const updatedEntries = entries.map((entry, i) =>
-                      i === idx ? { ...entry, [field]: value } : entry
-                    );
-                    setEntries(updatedEntries);
-                  };
-
-                  return (
-                    <tr key={idx}>
-                      <td className="flex items-center gap-2">
-                        {idx + 1}
-                      </td>
-                      <td><input type="text" className="input input-bordered" value={row.stock} onChange={e => handleEntryChange('stock', e.target.value)} /></td>
-                      <td><input type="number" className="input input-bordered" value={row.cmp} onChange={e => handleEntryChange('cmp', e.target.value)} /></td>
-                      <td><input type="number" className="input input-bordered" value={row.slp} onChange={e => handleEntryChange('slp', e.target.value)} /></td>
-                      <td><input type="number" className="input input-bordered" value={row.tgtp} onChange={e => handleEntryChange('tgtp', e.target.value)} /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={sl.toFixed(2)} readOnly title="Stop Loss = CMP - SLP" /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={tgt.toFixed(2)} readOnly title="Target = TGTP - CMP" /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={stb_sl.toFixed(2)} readOnly title="Stocks to buy based on Stop Loss = Risk/Trade / SL" /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={stb_ipt.toFixed(2)} readOnly title="Stocks to buy based on Investment/Trade = Investment/Trade / CMP" /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={stb} readOnly title="Stocks to buy = Min(STB-SL, STB-IPT)" /></td>
-                      <td><input type="number" className="input input-bordered" value={row.sb} onChange={e => handleEntryChange('sb', e.target.value)} /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={row.sb ? invested.toFixed(2) : ""} readOnly title="Invested Amount = CMP * SB" /></td>
-                      <td><select className="select select-bordered" value={row.rsi} onChange={e => handleEntryChange('rsi', e.target.value)}><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select></td>
-                      <td><select className="select select-bordered" value={row.candle} onChange={e => handleEntryChange('candle', e.target.value)}><option value="">Select</option><option value="Mazibozu">Mazibozu</option><option value="Bullish">Bullish</option><option value="Hammer">Hammer</option><option value="Engulf">Engulf</option><option value="Pin">Pin</option><option value="Tweezer">Tweezer</option><option value="Doji">Doji</option><option value="Bearish">Bearish</option></select></td>
-                      <td><select className="select select-bordered" value={row.volume} onChange={e => handleEntryChange('volume', e.target.value)}><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select></td>
-                      <td><select className="select select-bordered" value={row.pl} title="Profit/Loss?" onChange={e => handleEntryChange('pl', e.target.value)}><option value="">Select</option><option value="Profit">Profit</option><option value="Loss">Loss</option></select></td>
-                      <td><input type="date" className="input input-bordered" value={row.entry_date} onChange={e => handleEntryChange('entry_date', e.target.value)} /></td>
-                      <td><input type="date" className="input input-bordered" value={row.exit_date} onChange={e => handleEntryChange('exit_date', e.target.value)} /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={(pl === "Profit" || pl === "Loss") ? booked : ""} readOnly title="Booked = (CMP + TGT) * SB - Invested (Profit), (CMP - SL) * SB - Invested (Loss)" /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={(pl === "Profit" || pl === "Loss") ? rr : ""} readOnly title="Risk to Reward Ratio = (Booked / SB) / SL (if Profit)" /></td>
-                      <td><input type="number" className="input input-bordered bg-gray-100" value={tenure} readOnly title="Tenure in days" /></td>
-                      <td><input type="text" className="input input-bordered w-48" value={row.remarks} onChange={e => handleEntryChange('remarks', e.target.value)} /></td>
-                      <button
-                          type="button"
-                          className="btn btn-xs btn-success ml-2"
-                          title="Save this entry"
-                          onClick={() => handleSaveRow(entries[idx], idx)}
-                        >
-                          Save
-                        </button>
-                      <button
-                          type="button"
-                          className="btn btn-xs btn-error ml-2"
-                          title="Delete this entry"
-                          onClick={() => handleDeleteRow(idx)}
-                        >
-                          Delete
-                        </button>
-                    </tr>
-                  );
-                })}
+                {entries.map((row, idx) => (
+                  <tr key={idx}>
+                    <td>{idx + 1}</td>
+                    <td><input className="input input-bordered w-full" value={row.stock} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, stock: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td><input className="input input-bordered w-full" type="number" value={row.cmp} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, cmp: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td><input className="input input-bordered w-full" type="number" value={row.slp} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, slp: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td><input className="input input-bordered w-full" type="number" value={row.tgtp} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, tgtp: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td>{row.sl}</td>
+                    <td>{row.tgt}</td>
+                    <td>{row.stb_sl}</td>
+                    <td>{row.stb_ipt}</td>
+                    <td>{row.stb}</td>
+                    <td><input className="input input-bordered w-full" type="number" value={row.sb} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, sb: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td>{row.invested}</td>
+                    <td><select className="select select-bordered w-full" value={row.rsi} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, rsi: e.target.value });
+                      setEntries(updated);
+                    }}>
+                      <option value="">Select</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select></td>
+                    <td><select className="select select-bordered w-full" value={row.candle} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, candle: e.target.value });
+                      setEntries(updated);
+                    }}>
+                      <option value="">Select</option>
+                      <option value="Mazibozu">Mazibozu</option>
+                      <option value="Bullish">Bullish</option>
+                      <option value="Hammer">Hammer</option>
+                      <option value="Engulf">Engulf</option>
+                      <option value="Pin">Pin</option>
+                      <option value="Tweezer">Tweezer</option>
+                      <option value="Doji">Doji</option>
+                      <option value="Bearish">Bearish</option>
+                    </select></td>
+                    <td><select className="select select-bordered w-full" value={row.volume} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, volume: e.target.value });
+                      setEntries(updated);
+                    }}>
+                      <option value="">Select</option>
+                      <option value="Yes">Yes</option>
+                      <option value="No">No</option>
+                    </select></td>
+                    <td><select className="select select-bordered w-full" value={row.pl} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, pl: e.target.value });
+                      setEntries(updated);
+                    }}>
+                      <option value="">Select</option>
+                      <option value="Profit">Profit</option>
+                      <option value="Loss">Loss</option>
+                    </select></td>
+                    <td><input className="input input-bordered w-full" type="date" value={row.entry_date} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, entry_date: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td><input className="input input-bordered w-full" type="date" value={row.exit_date} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, exit_date: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td>{row.booked}</td>
+                    <td>{row.rr}</td>
+                    <td>{getTenure(row.entry_date, row.exit_date)}</td>
+                    <td><input className="input input-bordered w-full" value={row.remarks} onChange={e => {
+                      const updated = [...entries];
+                      updated[idx] = computeRow({ ...row, remarks: e.target.value });
+                      setEntries(updated);
+                    }} /></td>
+                    <td>
+                      <button className="btn btn-success btn-xs mr-2" onClick={() => handleSaveRow(row, idx)}>Save</button>
+                      <button className="btn btn-error btn-xs" onClick={() => handleDeleteRow(row, idx)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       </div>
+    {/* Settings button at the bottom */}
+    <div className="flex justify-center mt-8">
+      <button
+        className="btn btn-secondary"
+        onClick={() => {
+          const roiData = {
+            user_id: user && user.user_id ? user.user_id : "",
+            total_capital: capital,
+            risk,
+            total_risk: totalRisk,
+            diversification,
+            ipt: investmentPerTrade,
+            rpt: riskPerTrade,
+            invested: investedSum,
+            monthly_pl: monthlyPLTotal,
+            tax_pl: taxPL,
+            donation_pl: donation,
+            monthly_gain: monthlyGain,
+            monthly_percent_gain: monthlyGainPercent,
+            // total_gain and total_percert_gain can be set to monthly values or calculated as needed
+            total_gain: monthlyGain,
+            total_percert_gain: monthlyGainPercent
+          };
+          navigate('/user-roi', { state: roiData });
+        }}
+      >
+        Settings
+      </button>
     </div>
+    </div>
+
   );
 }

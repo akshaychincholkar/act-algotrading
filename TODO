@@ -1,0 +1,6 @@
+Token Authentication 
+Todo:
+  ☐ Create the user model with token authentication 
+  ☐ Assign foreign key to the trade model - on delete cascade for the user
+  ☐ List the trades for the user
+  ☐ Create token generation and validation logic

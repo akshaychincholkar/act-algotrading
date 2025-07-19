@@ -1,5 +1,7 @@
 from django.db import models
+
 class Trade(models.Model):
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name='trades', null=True, blank=True)
     stock = models.CharField(max_length=50, blank=True, null=True)
     cmp = models.FloatField(blank=True, null=True)
     slp = models.FloatField(blank=True, null=True)
@@ -22,3 +24,6 @@ class Trade(models.Model):
     exit_date = models.DateField(null=True, blank=True)
     tenure = models.IntegerField(null=True, blank=True)
     remarks = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Trade {self.id} - {self.stock} by {self.user.email_id} on {self.entry_date}"
