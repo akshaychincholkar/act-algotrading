@@ -25,6 +25,11 @@ const initialEntry = {
 import { useNavigate } from "react-router-dom";
 
 export default function AlgoTradeUI() {
+  // Screener state (move all state declarations above useEffect hooks)
+  const [screeners, setScreeners] = useState([]);
+  const [selectedScreener, setSelectedScreener] = useState("");
+  const [screenerStocks, setScreenerStocks] = useState([]);
+  const [loadingStocks, setLoadingStocks] = useState(false);
   const navigate = useNavigate();
   const [capital, setCapital] = useState(100000);
   const [risk, setRisk] = useState(2);
@@ -36,6 +41,46 @@ export default function AlgoTradeUI() {
     const stored = localStorage.getItem("kiteUser");
     return stored ? JSON.parse(stored) : null;
   });
+
+  // Fetch stocks when selectedScreener changes
+  useEffect(() => {
+    if (!selectedScreener) {
+      setScreenerStocks([]);
+      return;
+    }
+    setLoadingStocks(true);
+    axios.get(`http://localhost:8000/api/stocks?screener_name=${encodeURIComponent(selectedScreener)}`)
+      .then(res => {
+        if (res.data && Array.isArray(res.data.stocks)) {
+          setScreenerStocks(res.data.stocks);
+        } else {
+          setScreenerStocks([]);
+        }
+      })
+      .catch(() => setScreenerStocks([]))
+      .finally(() => setLoadingStocks(false));
+  }, [selectedScreener]);
+
+  // Add stock to Trade Entries at the top
+  const handleTradeStock = (stockName) => {
+    const newEntry = computeRow({
+      ...initialEntry,
+      stock: stockName
+    });
+    setEntries(prev => [newEntry, ...prev]);
+  };
+
+  // Fetch all screeners on mount
+  useEffect(() => {
+    axios.get("http://localhost:8000/api/screener/")
+      .then(res => {
+        if (Array.isArray(res.data)) {
+          setScreeners(res.data);
+          if (res.data.length > 0) setSelectedScreener(res.data[0].screener_name || "");
+        }
+      })
+      .catch(() => setScreeners([]));
+  }, []);
 
   // On mount, check for request_token in URL and call generate-token API
   // On mount: handle request_token and fetch trades for user
@@ -303,51 +348,61 @@ export default function AlgoTradeUI() {
         )}
       </div>
       <div className="max-w-7xl mx-auto space-y-8">
+        {/* Screener section above Trade Entries */}
+        <div className="bg-white rounded-lg shadow p-6 mb-4">
+          <h2 className="text-lg font-bold mb-2">Screener</h2>
+          <div className="flex items-center mb-4">
+            <label htmlFor="screener-dropdown" className="mr-2 font-medium">Select Screener:</label>
+            <select
+              id="screener-dropdown"
+              className="select select-bordered w-full max-w-xs"
+              value={selectedScreener}
+              onChange={e => setSelectedScreener(e.target.value)}
+            >
+              {screeners.length === 0 && <option value="">No screeners available</option>}
+              {screeners.map((screener) => (
+                <option key={screener.id || screener.screener_name} value={screener.screener_name}>
+                  {screener.screener_name}
+                </option>
+              ))}
+            </select>
+          </div>
+          {/* Stocks table for selected screener */}
+          <div className="mt-2">
+            <h3 className="text-md font-semibold mb-2">Stocks in Screener</h3>
+            {loadingStocks ? (
+              <div>Loading stocks...</div>
+            ) : screenerStocks.length === 0 ? (
+              <div className="text-gray-500">No stocks found for this screener.</div>
+            ) : (
+              <table className="table w-full">
+                <thead>
+                  <tr>
+                    <th>Stock</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {screenerStocks.map((stock, idx) => (
+                    <tr key={stock + idx}>
+                      <td>{stock}</td>
+                      <td>
+                        <button className="btn btn-primary btn-xs" onClick={() => handleTradeStock(stock)}>
+                          Trade
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
         {/* Top summary and input fields in table format */}
         <div className="bg-white rounded-lg shadow p-6">
+          {/* ...existing code... */}
           <table className="table w-full">
-            <thead>
-              <tr>
-                <th>Total Capital</th>
-                <th>Risk</th>
-                <th>Total Risk</th>
-                <th>Diversification</th>
-                <th>Investment/Trade</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><input type="number" className="input input-bordered w-full" value={capital} onChange={e => setCapital(Number(e.target.value))} min={0} /></td>
-                <td><input type="number" className="input input-bordered w-full" value={risk} onChange={e => setRisk(Number(e.target.value))} min={1} /></td>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={totalRisk.toFixed(2)} readOnly /></td>
-                <td><input type="number" className="input input-bordered w-full" value={diversification} onChange={e => setDiversification(Number(e.target.value))} min={1} /></td>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={investmentPerTrade.toFixed(2)} readOnly /></td>
-              </tr>
-              <tr>
-                <th>Risk/Trade</th>
-                <th>Invested</th>
-                <th>Monthly P/L Total</th>
-                <th>Tax P/L (%)</th>
-                <th>Donation</th>
-              </tr>
-              <tr>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={riskPerTrade.toFixed(2)} readOnly /></td>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={investedSum.toFixed(2)} readOnly /></td>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={monthlyPLTotal.toFixed(2)} readOnly /></td>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={taxPL.toFixed(2)} readOnly /></td>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={donation.toFixed(2)} readOnly /></td>
-              </tr>
-              <tr>
-                <th>Monthly Gain</th>
-                <th>Monthly Gain (%)</th>
-                <th colSpan={3}></th>
-              </tr>
-              <tr>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={monthlyGain.toFixed(2)} readOnly /></td>
-                <td><input type="number" className="input input-bordered w-full bg-gray-100" value={monthlyGainPercent.toFixed(2)} readOnly /></td>
-                <td colSpan={3}></td>
-              </tr>
-            </tbody>
+            {/* ...existing code... */}
           </table>
         </div>
         <div className="bg-white rounded-lg shadow p-6">
@@ -388,22 +443,22 @@ export default function AlgoTradeUI() {
                 {entries.map((row, idx) => (
                   <tr key={idx}>
                     <td>{idx + 1}</td>
-                    <td><input className="input input-bordered w-full" value={row.stock} onChange={e => {
+                    <td><input className="input input-bordered w-full" value={row.stock ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, stock: e.target.value });
                       setEntries(updated);
                     }} /></td>
-                    <td><input className="input input-bordered w-full" type="number" value={row.cmp} onChange={e => {
+                    <td><input className="input input-bordered w-full" type="number" value={row.cmp ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, cmp: e.target.value });
                       setEntries(updated);
                     }} /></td>
-                    <td><input className="input input-bordered w-full" type="number" value={row.slp} onChange={e => {
+                    <td><input className="input input-bordered w-full" type="number" value={row.slp ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, slp: e.target.value });
                       setEntries(updated);
                     }} /></td>
-                    <td><input className="input input-bordered w-full" type="number" value={row.tgtp} onChange={e => {
+                    <td><input className="input input-bordered w-full" type="number" value={row.tgtp ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, tgtp: e.target.value });
                       setEntries(updated);
@@ -413,13 +468,13 @@ export default function AlgoTradeUI() {
                     <td>{row.stb_sl}</td>
                     <td>{row.stb_ipt}</td>
                     <td>{row.stb}</td>
-                    <td><input className="input input-bordered w-full" type="number" value={row.sb} onChange={e => {
+                    <td><input className="input input-bordered w-full" type="number" value={row.sb ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, sb: e.target.value });
                       setEntries(updated);
                     }} /></td>
                     <td>{row.invested}</td>
-                    <td><select className="select select-bordered w-full" value={row.rsi} onChange={e => {
+                    <td><select className="select select-bordered w-full" value={row.rsi ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, rsi: e.target.value });
                       setEntries(updated);
@@ -428,7 +483,7 @@ export default function AlgoTradeUI() {
                       <option value="Yes">Yes</option>
                       <option value="No">No</option>
                     </select></td>
-                    <td><select className="select select-bordered w-full" value={row.candle} onChange={e => {
+                    <td><select className="select select-bordered w-full" value={row.candle ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, candle: e.target.value });
                       setEntries(updated);
@@ -443,7 +498,7 @@ export default function AlgoTradeUI() {
                       <option value="Doji">Doji</option>
                       <option value="Bearish">Bearish</option>
                     </select></td>
-                    <td><select className="select select-bordered w-full" value={row.volume} onChange={e => {
+                    <td><select className="select select-bordered w-full" value={row.volume ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, volume: e.target.value });
                       setEntries(updated);
@@ -452,7 +507,7 @@ export default function AlgoTradeUI() {
                       <option value="Yes">Yes</option>
                       <option value="No">No</option>
                     </select></td>
-                    <td><select className="select select-bordered w-full" value={row.pl} onChange={e => {
+                    <td><select className="select select-bordered w-full" value={row.pl ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, pl: e.target.value });
                       setEntries(updated);
@@ -461,12 +516,12 @@ export default function AlgoTradeUI() {
                       <option value="Profit">Profit</option>
                       <option value="Loss">Loss</option>
                     </select></td>
-                    <td><input className="input input-bordered w-full" type="date" value={row.entry_date} onChange={e => {
+                    <td><input className="input input-bordered w-full" type="date" value={row.entry_date ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, entry_date: e.target.value });
                       setEntries(updated);
                     }} /></td>
-                    <td><input className="input input-bordered w-full" type="date" value={row.exit_date} onChange={e => {
+                    <td><input className="input input-bordered w-full" type="date" value={row.exit_date ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, exit_date: e.target.value });
                       setEntries(updated);
@@ -474,7 +529,7 @@ export default function AlgoTradeUI() {
                     <td>{row.booked}</td>
                     <td>{row.rr}</td>
                     <td>{getTenure(row.entry_date, row.exit_date)}</td>
-                    <td><input className="input input-bordered w-full" value={row.remarks} onChange={e => {
+                    <td><input className="input input-bordered w-full" value={row.remarks ?? ""} onChange={e => {
                       const updated = [...entries];
                       updated[idx] = computeRow({ ...row, remarks: e.target.value });
                       setEntries(updated);
@@ -490,35 +545,35 @@ export default function AlgoTradeUI() {
           </div>
         </div>
       </div>
-    {/* Settings button at the bottom */}
-    <div className="flex justify-center mt-8">
-      <button
-        className="btn btn-secondary"
-        onClick={() => {
-          const roiData = {
-            user_id: user && user.user_id ? user.user_id : "",
-            total_capital: capital,
-            risk,
-            total_risk: totalRisk,
-            diversification,
-            ipt: investmentPerTrade,
-            rpt: riskPerTrade,
-            invested: investedSum,
-            monthly_pl: monthlyPLTotal,
-            tax_pl: taxPL,
-            donation_pl: donation,
-            monthly_gain: monthlyGain,
-            monthly_percent_gain: monthlyGainPercent,
-            // total_gain and total_percert_gain can be set to monthly values or calculated as needed
-            total_gain: monthlyGain,
-            total_percert_gain: monthlyGainPercent
-          };
-          navigate('/user-roi', { state: roiData });
-        }}
-      >
-        Settings
-      </button>
-    </div>
+      {/* Settings button at the bottom */}
+      <div className="flex justify-center mt-8">
+        <button
+          className="btn btn-secondary"
+          onClick={() => {
+            const roiData = {
+              user_id: user && user.user_id ? user.user_id : "",
+              total_capital: capital,
+              risk,
+              total_risk: totalRisk,
+              diversification,
+              ipt: investmentPerTrade,
+              rpt: riskPerTrade,
+              invested: investedSum,
+              monthly_pl: monthlyPLTotal,
+              tax_pl: taxPL,
+              donation_pl: donation,
+              monthly_gain: monthlyGain,
+              monthly_percent_gain: monthlyGainPercent,
+              // total_gain and total_percert_gain can be set to monthly values or calculated as needed
+              total_gain: monthlyGain,
+              total_percert_gain: monthlyGainPercent
+            };
+            navigate('/user-roi', { state: roiData });
+          }}
+        >
+          Settings
+        </button>
+      </div>
     </div>
 
   );

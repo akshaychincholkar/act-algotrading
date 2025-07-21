@@ -1,4 +1,17 @@
 from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from .models import Trade, GlobalParameters, User
+from .serializers import TradeSerializer
+from .models import GlobalParameters
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET
+import json
+from .utils.chartink_screener import fetch_chartink_screener
+
 @api_view(['GET', 'PUT', 'DELETE'])
 def trade_detail(request, pk):
     try:
@@ -28,14 +41,6 @@ def trade_detail(request, pk):
     elif request.method == 'DELETE':
         trade.delete()
         return Response(status=204)
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from .models import Trade, GlobalParameters, User
-from .serializers import TradeSerializer
-from .models import GlobalParameters
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
 
 def create(self, request, *args, **kwargs):
         data = request.data.copy()
@@ -100,3 +105,18 @@ def global_parameters(request):
             return Response({'key': param.key, 'value': param.value}, status=status.HTTP_200_OK)
         except GlobalParameters.DoesNotExist:
             return Response({'error': 'Key not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+@csrf_exempt
+@require_GET
+def stocks_by_screener(request):
+    """
+    GET /stocks?screener_name=...  -> returns list of stocks for the screener_name
+    """
+    screener_name = request.GET.get('screener_name')
+    if not screener_name:
+        return JsonResponse({'error': 'Missing screener_name parameter'}, status=400)
+    try:
+        stocks = fetch_chartink_screener(screener_name)
+        return JsonResponse({'stocks': stocks}, status=200)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
