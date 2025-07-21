@@ -1,2 +1,8 @@
+# Ignore Python cache files and folders
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
 /algotrader/backend/trading/__pycache__/
 /algotrader/backend/trading/utils/__pycache__/

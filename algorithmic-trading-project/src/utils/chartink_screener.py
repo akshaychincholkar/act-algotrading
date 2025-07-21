@@ -1,6 +1,98 @@
+import json
+import re
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
+import re
+from chartink_scan_clause import open_chartink_browser_and_print_scan_clause
+# --- NEW FUNCTION TO FETCH scan_clause BY SCREENER NAME ---
+def get_scan_clause_by_name(scanner_name):
+    """
+    Fetch the scan_clause for a given Chartink scanner name using the /backtest/process API.
+    Example: scanner_name = 'bittu-daily-trading'
+    """
+    session = requests.Session()
+    screener_url = f"https://chartink.com/screener/{scanner_name}"
+    resp = session.get(screener_url)
+    if resp.status_code != 200:
+        print(f"Failed to load screener page: {screener_url}")
+        return None
+    soup = BeautifulSoup(resp.text, "html.parser")
+    # Try to extract scan_id from the page (used by Chartink internally)
+    scan_id = None
+    for script in soup.find_all("script"):
+        if script.string and 'scan_id' in script.string:
+            match = re.search(r'scan_id\s*:\s*(\d+)', script.string)
+            if match:
+                scan_id = match.group(1)
+                break
+    if not scan_id:
+        # Try to extract from URL (if present)
+        match = re.search(r'-([0-9]+)$', scanner_name)
+        if match:
+            scan_id = match.group(1)
+    if not scan_id:
+        print("Could not find scan_id for screener")
+        return None
+    # Get CSRF token
+    homepage = session.get("https://chartink.com/")
+    soup_home = BeautifulSoup(homepage.text, "html.parser")
+    token_input = soup_home.find("meta", {"name": "csrf-token"})
+    if not token_input:
+        print("Could not find CSRF token")
+        return None
+    csrf_token = token_input["content"]
+    headers = {
+        "x-csrf-token": csrf_token,
+        "User-Agent": "Mozilla/5.0",
+        "Referer": screener_url
+    }
+    payload = {"scan_id": scan_id}
+    try:
+        # This endpoint returns scan_clause and other details
+        r = session.post("https://chartink.com/backtest/process", data=payload, headers=headers)
+        r.raise_for_status()
+        data = r.json()
+        if "scan_clause" in data:
+            return data["scan_clause"]
+        # Fallback: try to parse from HTML if not present
+        for script in soup.find_all("script"):
+            if script.string and "scan_clause" in script.string:
+                match = re.search(r'scan_clause\s*:\s*"(.*?)"', script.string, re.DOTALL)
+                if match:
+                    scan_clause = match.group(1)
+                    scan_clause = scan_clause.encode().decode('unicode_escape')
+                    return scan_clause
+    except Exception as e:
+        print("Failed to fetch scan_clause:", e)
+    return None
+
+
+# def get_scan_clause_by_name(scanner_name):
+#     """
+#     Fetch the scan_clause for a given Chartink scanner name.
+#     Example: scanner_name = 'bittu-daily-trading'
+#     """
+#     session = requests.Session()
+#     url = f"https://chartink.com/screener/{scanner_name}"
+#     resp = session.get(url)
+#     soup = BeautifulSoup(resp.text, "html.parser")
+#     # The scan_clause is embedded in a <script> tag as part of a JS variable
+#     scripts = soup.find_all("script")
+#     for script in scripts:
+#         if script.string and "scan_clause" in script.string:
+#             # Try to extract the scan_clause string
+#             match = re.search(r'scan_clause\s*:\s*"(.*?)"', script.string, re.DOTALL)
+#             if match:
+#                 scan_clause = match.group(1)
+#                 # Unescape any escaped quotes
+#                 scan_clause = scan_clause.encode().decode('unicode_escape')
+#                 return scan_clause
+#     return None
+
+# Example usage:
+# clause = get_scan_clause_by_name("bittu-daily-trading")
+# print(clause)
 
 def fetch_chartink_screener(scan_clause):
 #     url = "https://chartink.com/screener/process"
@@ -52,22 +144,9 @@ def fetch_chartink_screener(scan_clause):
         return []
 
 # Your actual scan_clause goes here (must be copied from browser dev tools)
-scan_clause = "( {cash} ( latest close >= latest ema( latest close , 26 ) and latest close >= latest ema( latest close , 13 ) and latest close >= latest ema( latest close , 5 ) and latest rsi( 14 ) >= 60 and weekly macd line( 26 , 13 , 5 ) >= 0 and latest adx di positive( 13 ) > latest adx di negative( 13 ) and( {cash} ( latest adx( 13 ) > 12 or latest adx( 13 ) >= 1 day ago adx( 13 ) ) ) and( {cash} ( latest upper bollinger band( 20 , 2 ) < latest close and latest close > 1 day ago close and 1 day ago close > 2 days ago close ) ) and latest volume >= latest sma( latest volume , 13 ) and market cap >= 5000 ) ) "
-# scan_clause = '''{
-#     "filters":[
-#         {"left":{"indicator":"latest close"},"operation":">","right":{"indicator":"ema","params":[5]}},
-#         {"left":{"indicator":"latest close"},"operation":">","right":{"indicator":"ema","params":[13]}},
-#         {"left":{"indicator":"latest close"},"operation":">","right":{"indicator":"ema","params":[26]}},
-#         {"left":{"indicator":"rsi","params":[14]},"operation":">","right":{"value":50}},
-#         {"left":{"indicator":"macd line weekly"},"operation":">","right":{"indicator":"macd signal weekly"}},
-#         {"left":{"indicator":"adx +di"},"operation":">","right":{"indicator":"adx -di"}},
-#         {"left":{"indicator":"adx"},"operation":">","right":{"value":30}},
-#         {"left":{"indicator":"upper bollinger band"},"operation":">","right":{"indicator":"latest close"}},
-#         {"left":{"indicator":"latest close"},"operation":">","right":{"indicator":"1 day ago close"}},
-#         {"left":{"indicator":"latest volume"},"operation":">","right":{"indicator":"sma volume","params":[20]}}
-#     ],
-#     "sort":{"sort_on":"volume","order":"desc"}
-# }'''
+# scan_clause = "( {cash} ( latest close >= latest ema( latest close , 26 ) and latest close >= latest ema( latest close , 13 ) and latest close >= latest ema( latest close , 5 ) and latest rsi( 14 ) >= 60 and weekly macd line( 26 , 13 , 5 ) >= 0 and latest adx di positive( 13 ) > latest adx di negative( 13 ) and( {cash} ( latest adx( 13 ) > 12 or latest adx( 13 ) >= 1 day ago adx( 13 ) ) ) and( {cash} ( latest upper bollinger band( 20 , 2 ) < latest close and latest close > 1 day ago close and 1 day ago close > 2 days ago close ) ) and latest volume >= latest sma( latest volume , 13 ) and market cap >= 5000 ) ) "
+# scanner_name = "bittu-daily-trading"
+# scan_clause = open_chartink_browser_and_print_scan_clause(scanner_name)
 
 # Run it
-fetch_chartink_screener(scan_clause)
+# fetch_chartink_screener(scan_clause)

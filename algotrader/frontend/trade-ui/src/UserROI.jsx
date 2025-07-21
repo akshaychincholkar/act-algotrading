@@ -1,6 +1,13 @@
 // import React, { useState } from "react";
 
 import React, { useState, useEffect } from "react";
+const screenerTableColumns = [
+  "screener_name",
+  "created_by",
+  "created_at",
+  "updated_at",
+  "last_run"
+];
 import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -21,12 +28,14 @@ const initialState = {
   total_percert_gain: ""
 };
 
+
 export default function UserROI() {
   const navigate = useNavigate();
   const location = useLocation();
   const [form, setForm] = useState(initialState);
   const [message, setMessage] = useState("");
   const [userId, setUserId] = useState("");
+  const [screeners, setScreeners] = useState([]);
 
   useEffect(() => {
     // Pre-populate form with values from navigation state if present
@@ -44,6 +53,13 @@ export default function UserROI() {
       }
     }
   }, [location.state]);
+
+  // Fetch all screener entries on mount
+  useEffect(() => {
+    axios.get("http://localhost:8000/api/screener/")
+      .then(res => setScreeners(res.data))
+      .catch(() => setScreeners([]));
+  }, []);
 
 
   // Recalculate all dependent fields using the same formulas as AlgoTradeUI
@@ -118,6 +134,40 @@ export default function UserROI() {
     }
   };
 
+  // Add Screener Modal state and logic
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [screenerName, setScreenerName] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState("");
+
+  const handleAddScreener = async () => {
+    if (!screenerName) return;
+    setAddLoading(true);
+    setAddError("");
+    try {
+      const payload = { user_id: userId , screener_name: screenerName};
+      // const res = await axios.post(
+      //   `http://localhost:8000/screener/`,
+      //    { screener_name: screenerName, user_id: userId }
+      // );
+      // const res = await axios.post("http://localhost:8000/api/screener/", { user_id: userId, screener_name: screenerName });
+      const res = await axios.post("http://localhost:8000/api/screener/", payload);
+      if (res.data.success) {
+        // Refresh screener list
+        const listRes = await axios.get("http://localhost:8000/api/screener/");
+        setScreeners(listRes.data);
+        setScreenerName("");
+        setShowAddModal(false);
+      } else {
+        setAddError(res.data.error || "Unknown error");
+      }
+    } catch (e) {
+      setAddError(e.response?.data?.error || "Failed to add screener");
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <form className="bg-white p-8 rounded shadow-md w-full max-w-lg" onSubmit={handleSubmit}>
@@ -139,7 +189,60 @@ export default function UserROI() {
         <button className="btn btn-primary w-full" type="submit">Save</button>
         <button className="btn btn-secondary w-full mt-4" type="button" onClick={() => navigate('/trade')}>Back</button>
         {message && <div className="mt-4 text-center font-semibold">{message}</div>}
+        {/* Screener Table */}
+        <div className="mt-8">
+          <h3 className="text-xl font-bold mb-2">Screeners</h3>
+          <div className="overflow-x-auto">
+            <table className="table w-full">
+              <thead>
+                <tr>
+                  {screenerTableColumns.map(col => (
+                    <th key={col} className="capitalize">{col.replace(/_/g, " ")}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {screeners.length === 0 ? (
+                  <tr><td colSpan={screenerTableColumns.length} className="text-center">No screeners found</td></tr>
+                ) : (
+                  screeners.map((screener, idx) => (
+                    <tr key={idx}>
+                      {screenerTableColumns.map(col => (
+                        <td key={col}>{screener[col]?.toString() || ""}</td>
+                      ))}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <button className="btn btn-accent w-full mt-4" type="button" onClick={() => setShowAddModal(true)}>Add Screener</button>
+        </div>
       </form>
+
+      {/* Add Screener Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
+          <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
+            <h3 className="text-lg font-bold mb-4">Add Screener</h3>
+            <input
+              className="input input-bordered w-full mb-2"
+              type="text"
+              placeholder="Screener Name"
+              value={screenerName}
+              onChange={e => setScreenerName(e.target.value)}
+              disabled={addLoading}
+            />
+            {addError && <div className="text-red-500 mb-2">{addError}</div>}
+            <div className="flex gap-2">
+              <button className="btn btn-primary flex-1" onClick={handleAddScreener} disabled={addLoading || !screenerName}>
+                {addLoading ? "Verifying..." : "Verify & Add"}
+              </button>
+              <button className="btn btn-secondary flex-1" onClick={() => setShowAddModal(false)} disabled={addLoading}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
