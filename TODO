@@ -1,6 +1,27 @@
 Token Authentication 
 Todo:
-  ☐ Create the user model with token authentication 
-  ☐ Assign foreign key to the trade model - on delete cascade for the user
-  ☐ List the trades for the user
-  ☐ Create token generation and validation logic
+  ✔ Create the user model with token authentication @done(25-07-22 11:08)
+  ✔ Assign foreign key to the trade model - on delete cascade for the user @done(25-07-22 11:08)
+  ✔ List the trades for the user @done(25-07-22 11:08)
+  ✔ Create token generation and validation logic @done(25-07-22 11:08)
+  ☐ UI Enhancements
+    ☐ TODO: Add the pop-up validations to the trade taken
+    ☐ TODO: Add the colors for the P&L
+    ☐ TODO: Add the richness to the UI for tables and displays
+    ☐ TODO: Showcase the pie chart for the P&L
+
+  ☐ Features
+    ☐ TODO: Add the monthly view to the user trades by filtering the trades
+    ☐ TODO: Define the impersonation of the user trades to view the trades of the user
+    ☐ TODO: Create the separate buttons to view into the groww and zerodha
+    ☐ TODO: Add the GTT orders to the trades while buying the stocks
+
+  ☐ Fixes
+    ☐ FIXME: /user_roi and /screener APIs are working without authentication, need to fix it
+    ☐ FIXME:Remove the unwanted screeners
+    ☐ FIXME: Check from the database if the entry is present and then only display buy/save
+
+  ☐ Configuration/Deployment
+    ☐ TODO: Setup the gitlab for the project in your own workspace
+    ☐ TODO: Check for the deployment server if you can deploy the project on another system
+

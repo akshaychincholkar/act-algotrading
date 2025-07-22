@@ -8,9 +8,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 import json
 from .utils.chartink_screener import fetch_chartink_screener
+from .utils.kite_transaction_manager import place_market_order
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def trade_detail(request, pk):
@@ -120,3 +121,21 @@ def stocks_by_screener(request):
         return JsonResponse({'stocks': stocks}, status=200)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+@csrf_exempt
+@require_POST
+def buy_stock(request):
+    """
+    POST /stock/buy with JSON: {"user_id": ..., "stock_name": ..., "quantity": ...}
+    """
+    try:
+        data = json.loads(request.body.decode())
+        user_id = data.get("user_id")
+        stock_name = data.get("stock_name")
+        quantity = data.get("quantity")
+        if not user_id or not stock_name or not quantity:
+            return JsonResponse({"error": "Missing required parameters"}, status=400)
+        place_market_order(user_id, stock_name, quantity, "BUY")
+        return JsonResponse({"message": f"Buy order placed for {stock_name}, quantity {quantity}"}, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)

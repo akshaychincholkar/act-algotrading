@@ -4,8 +4,7 @@ from .views import trades, global_parameters, trade_detail
 from .utils.generate_token_api import generate_token
 from .views_user_roi import user_roi
 from .screener_api import screener
-from .views import stocks_by_screener
-# from .screener_api import ScreenerListAPI, ScreenerAddAPI
+from .views import stocks_by_screener, buy_stock
 
 urlpatterns = [
     path('trades/', views.trades, name='trades'),
@@ -15,5 +14,6 @@ urlpatterns = [
     path('user_roi/', user_roi, name='user-roi'),
     path('screener/', screener, name='screener'),
     path('stocks/', stocks_by_screener, name='stocks-by-screener'),
+    path('stock/buy', buy_stock, name='buy-stock'),
     # path('screener/<str:screener_name>/', ScreenerAddAPI.as_view(), name='screener-add'),
 ]

@@ -25,6 +25,32 @@ const initialEntry = {
 import { useNavigate } from "react-router-dom";
 
 export default function AlgoTradeUI() {
+  // Buy handler for Trade Entries
+  const handleBuyRow = async (row, idx) => {
+    if (!user || !user.user_id || !row.stock) {
+      alert('Missing user or stock information');
+      return;
+    }
+    const payload = {
+      user_id: user.user_id,
+      stock_name: row.stock,
+      quantity: row.sb && Number(row.sb) > 0 ? Number(row.sb) : 1
+    };
+    try {
+      const response = await axios.post('http://localhost:8000/api/stock/buy', payload);
+      if (response.status === 200) {
+        // Simulate DB save: set id to a dummy value to show Save button
+        const updated = [...entries];
+        updated[idx] = { ...row, id: Date.now() };
+        setEntries(updated);
+        alert(`Buy order placed for ${row.stock}`);
+      } else {
+        alert('Failed to place buy order.');
+      }
+    } catch (error) {
+      alert('Error placing buy order: ' + (error?.response?.data?.error || error.message));
+    }
+  };
   // Screener state (move all state declarations above useEffect hooks)
   const [screeners, setScreeners] = useState([]);
   const [selectedScreener, setSelectedScreener] = useState("");
@@ -179,7 +205,7 @@ export default function AlgoTradeUI() {
   };
 
   // Add row handler (ensure computed fields are set)
-  const handleAddRow = () => setEntries([...entries, computeRow(initialEntry)]);
+  const handleAddRow = () => setEntries(prev => [computeRow(initialEntry), ...prev]);
 
   // Helper for Tenure calculation
   const getTenure = (entry, exit) => {
@@ -338,6 +364,7 @@ export default function AlgoTradeUI() {
   //  #TODO: code to list the all the trade
   // TODO: Rich the UI with scrollbar
   // TODO: Create gitlab for. 
+
 
   // Render
   return (
@@ -535,7 +562,12 @@ export default function AlgoTradeUI() {
                       setEntries(updated);
                     }} /></td>
                     <td>
-                      <button className="btn btn-success btn-xs mr-2" onClick={() => handleSaveRow(row, idx)}>Save</button>
+                      {/* FIXME: Check from the database it the entry is present and then only display buy/save */}
+                      {row.id && typeof row.id === 'number' ? (
+                        <button className="btn btn-success btn-xs mr-2" onClick={() => handleSaveRow(row, idx)}>Save</button>
+                      ) : (
+                        <button className="btn btn-primary btn-xs mr-2" onClick={() => handleBuyRow(row, idx)}>Buy</button>
+                      )}
                       <button className="btn btn-error btn-xs" onClick={() => handleDeleteRow(row, idx)}>Delete</button>
                     </td>
                   </tr>
