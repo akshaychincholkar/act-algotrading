@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from "react";
+import { styled } from '@mui/material/styles';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Grid from '@mui/material/Grid';
+import { PieChart } from '@mui/x-charts/PieChart';
 import axios from "axios";
 import { DataGrid, GridActionsCellItem } from '@mui/x-data-grid';
-import { Box, Button, MenuItem, Select, TextField } from '@mui/material';
-import SaveIcon from '@mui/icons-material/Save';
-import DeleteIcon from '@mui/icons-material/Delete';
+// import { Box, Button, MenuItem, Select, TextField } from '@mui/material';
+import SaveIconSvg from './assets/save-icon.svg';
+import DeleteIconSvg from './assets/delete-icon.svg';
 // import axios from 'axios';
 // Import UI components from shadcn/ui, react-hook-form, framer-motion as needed
 
@@ -25,6 +30,31 @@ const initialEntry = {
 import { useNavigate } from "react-router-dom";
 
 export default function AlgoTradeUI() {
+  // Styled Paper for grid items
+  // Helper to determine contrast color (black/white) based on background
+  function getContrastColor(bgColor) {
+    // Remove hash if present
+    const color = bgColor.charAt(0) === '#' ? bgColor.substring(1, 7) : bgColor;
+    const r = parseInt(color.substring(0, 2), 16);
+    const g = parseInt(color.substring(2, 4), 16);
+    const b = parseInt(color.substring(4, 6), 16);
+    // Perceived brightness
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 180 ? '#222' : '#fff';
+  }
+
+  // Use a slightly off-white background for grid items
+  const gridBg = '#f8fafc';
+  const gridColor = getContrastColor(gridBg);
+  const Item = styled(Paper)(() => ({
+    backgroundColor: gridBg,
+    padding: 8,
+    textAlign: 'center',
+    color: gridColor,
+    fontWeight: 'bold',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+    borderRadius: 8,
+  }));
   // Buy handler for Trade Entries
   const handleBuyRow = async (row, idx) => {
     if (!user || !user.user_id || !row.stock) {
@@ -52,10 +82,16 @@ export default function AlgoTradeUI() {
     }
   };
   // Screener state (move all state declarations above useEffect hooks)
+  // Screener state (move all state declarations above useEffect hooks)
   const [screeners, setScreeners] = useState([]);
   const [selectedScreener, setSelectedScreener] = useState("");
   const [screenerStocks, setScreenerStocks] = useState([]);
   const [loadingStocks, setLoadingStocks] = useState(false);
+  // Pagination for stocks table
+  const [stocksPage, setStocksPage] = useState(1);
+  const stocksPerPage = 5;
+  const paginatedStocks = screenerStocks.slice((stocksPage - 1) * stocksPerPage, stocksPage * stocksPerPage);
+  const totalPages = Math.ceil(screenerStocks.length / stocksPerPage);
   const navigate = useNavigate();
   const [capital, setCapital] = useState(100000);
   const [risk, setRisk] = useState(2);
@@ -102,7 +138,8 @@ export default function AlgoTradeUI() {
       .then(res => {
         if (Array.isArray(res.data)) {
           setScreeners(res.data);
-          if (res.data.length > 0) setSelectedScreener(res.data[0].screener_name || "");
+          // Do not auto-select any screener, keep blank by default
+          // setSelectedScreener("");
         }
       })
       .catch(() => setScreeners([]));
@@ -176,7 +213,13 @@ export default function AlgoTradeUI() {
     const sb = Number(row.sb) || 0;
     const sl = cmp - slp;
     const tgt = tgtp - cmp;
-    const invested = cmp * sb;
+    // Invested logic: CMP * SB only when P/L is not selected
+    let invested;
+    if (!row.pl) {
+      invested = cmp * sb;
+    } else {
+      invested = cmp * sb; // fallback to previous logic, can be customized if needed
+    }
     let booked = '';
     if (row.pl === 'Profit') booked = ((cmp + tgt) * sb - invested).toFixed(2);
     else if (row.pl === 'Loss') booked = ((cmp - sl) * sb - invested).toFixed(2);
@@ -228,38 +271,47 @@ export default function AlgoTradeUI() {
   }, []);
 
   // Summary calculations (must be after all useState hooks and before return)
-  let investedSum = 0, monthlyPLTotal = 0, taxPL = 0, donation = 0, monthlyGain = 0, monthlyGainPercent = 0;
 
-  investedSum = entries.reduce((sum, row) => {
-    if (row.pl) {
-      const cmp = Number(row.cmp) || 0;
-      const sb = Number(row.sb) || 0;
-      return sum + cmp * sb;
-    }
-    return sum;
-  }, 0);
+let investedSum = 0, monthlyPLTotal = 0, taxPL = 0, donation = 0, monthlyGain = 0, monthlyGainPercent = 0;
 
-  monthlyPLTotal = entries.reduce((sum, row) => {
-    if (row.pl === "Profit" || row.pl === "Loss") {
-      const cmp = Number(row.cmp) || 0;
-      const slp = Number(row.slp) || 0;
-      const tgtp = Number(row.tgtp) || 0;
-      const sb = Number(row.sb) || 0;
-      const sl = cmp - slp;
-      const tgt = tgtp - cmp;
-      const invested = cmp * sb;
-      let booked = 0;
-      if (row.pl === "Profit") booked = (cmp + tgt) * sb - invested;
-      else if (row.pl === "Loss") booked = (cmp - sl) * sb - invested;
-      return sum + booked;
-    }
-    return sum;
-  }, 0);
+// Only sum Invested for rows where P/L is not selected
+investedSum = entries.reduce((sum, row) => {
+  if (!row.pl) {
+    // Use the computed invested value for the row
+    return sum + (Number(row.invested) || 0);
+  }
+  return sum;
+}, 0);
 
-  taxPL = monthlyPLTotal > 0 ? (monthlyPLTotal / capital) * 100 : 0;
-  donation = monthlyPLTotal > 0 ? monthlyPLTotal * 0.04 : 0;
-  monthlyGain = monthlyPLTotal - taxPL - donation;
-  monthlyGainPercent = capital > 0 ? (monthlyGain / capital) * 100 : 0;
+monthlyPLTotal = entries.reduce((sum, row) => {
+  if (row.pl === "Profit" || row.pl === "Loss") {
+    const cmp = Number(row.cmp) || 0;
+    const slp = Number(row.slp) || 0;
+    const tgtp = Number(row.tgtp) || 0;
+    const sb = Number(row.sb) || 0;
+    const sl = cmp - slp;
+    const tgt = tgtp - cmp;
+    const invested = cmp * sb;
+    let booked = 0;
+    if (row.pl === "Profit") booked = (cmp + tgt) * sb - invested;
+    else if (row.pl === "Loss") booked = (cmp - sl) * sb - invested;
+    return sum + booked;
+  }
+  return sum;
+}, 0);
+
+taxPL = monthlyPLTotal > 0 ? monthlyPLTotal  * 0.2 : 0;
+donation = monthlyPLTotal > 0 ? monthlyPLTotal * 0.04 : 0;
+monthlyGain = monthlyPLTotal - taxPL - donation;
+monthlyGainPercent = capital > 0 ? (monthlyGain / capital) * 100 : 0;
+
+// Pie chart data: sum of Booked < 0 and > 0
+const bookedPositive = entries.reduce((sum, row) => sum + (row.booked > 0 ? row.booked : 0), 0);
+const bookedNegative = entries.reduce((sum, row) => sum + (row.booked < 0 ? Math.abs(row.booked) : 0), 0);
+const pieData = [
+  { id: 0, value: bookedPositive, label: 'Profit', color: '#38a169' },
+  { id: 1, value: bookedNegative, label: 'Loss', color: '#dc2626' },
+];
   const handleDeleteRow = async (row, index) => {
     // If the row has a database ID, call backend to delete
     if (row.id && typeof row.id === 'number') {
@@ -355,7 +407,7 @@ export default function AlgoTradeUI() {
       const updated = [...entries];
       updated[index] = { ...row, ...response.data };
       setEntries(updated);
-      alert(`Row saved successfully! ${JSON.stringify(response.data)}`);
+      alert(`Trade saved successfully! `);
     } catch (error) {
       alert('Failed to save row.');
     }
@@ -374,19 +426,106 @@ export default function AlgoTradeUI() {
           <span className="text-lg font-semibold">Hello {user.user_shortname || user.user_id}!</span>
         )}
       </div>
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Screener section above Trade Entries */}
-        <div className="bg-white rounded-lg shadow p-6 mb-4">
-          <h2 className="text-lg font-bold mb-2">Screener</h2>
-          <div className="flex items-center mb-4">
-            <label htmlFor="screener-dropdown" className="mr-2 font-medium">Select Screener:</label>
+      {/* Upper section divided into two parts: ROI grid and Screener/Stocks */}
+      <div className="flex flex-row gap-8 mb-8">
+        {/* Part 1: ROI Grid in Box (reduced width by 20%) */}
+        <div style={{ display: 'flex', flexDirection: 'column', width: '80%' }}>
+          <Box sx={{ flexGrow: 1, width: '100%' }}>
+            <Grid container spacing={2} columns={4}>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}><Item sx={{ height: '50%', minWidth: 0 }}>Total Capital<br />{capital}</Item></Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}><Item sx={{ height: '50%', minWidth: 0 }}>Risk (%)<br />{risk}</Item></Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}><Item sx={{ height: '50%', minWidth: 0 }}>Total Risk<br />{totalRisk.toFixed(2)}</Item></Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}><Item sx={{ height: '50%', minWidth: 0 }}>Diversification<br />{diversification}</Item></Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}><Item sx={{ height: '50%', minWidth: 0 }}>Investment/Trade<br />{investmentPerTrade.toFixed(2)}</Item></Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}><Item sx={{ height: '50%', minWidth: 0 }}>Risk/Trade<br />{riskPerTrade.toFixed(2)}</Item></Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}><Item sx={{ height: '50%', minWidth: 0 }}>Invested<br />{investedSum.toFixed(2)}</Item></Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}>
+                <Item sx={{ height: '50%', minWidth: 0 }}>
+                  Monthly P/L<br />
+                  <span style={{ color: monthlyPLTotal > 0 ? '#38a169' : monthlyPLTotal < 0 ? 'red' : undefined, fontWeight: 'bold' }}>
+                    {monthlyPLTotal.toFixed(2)}
+                  </span>
+                </Item>
+              </Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}>
+                <Item sx={{ height: '50%', minWidth: 0 }}>
+                  Tax P/L<br />
+                  <span style={{ color: taxPL > 0 ? '#38a169' : taxPL < 0 ? 'red' : undefined, fontWeight: 'bold' }}>
+                    {taxPL.toFixed(2)}
+                  </span>
+                </Item>
+              </Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}>
+                <Item sx={{ height: '50%', minWidth: 0 }}>
+                  Donation<br />
+                  <span style={{ color: donation > 0 ? '#38a169' : donation < 0 ? 'red' : undefined, fontWeight: 'bold' }}>
+                    {donation.toFixed(2)}
+                  </span>
+                </Item>
+              </Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}>
+                <Item sx={{ height: '50%', minWidth: 0 }}>
+                  Monthly Gain<br />
+                  <span style={{ color: monthlyGain > 0 ? '#38a169' : monthlyGain < 0 ? 'red' : undefined, fontWeight: 'bold' }}>
+                    {monthlyGain.toFixed(2)}
+                  </span>
+                </Item>
+              </Grid>
+              <Grid item xs={1} sx={{ minWidth: 0, width: '20%', height: 120 }}>
+                <Item sx={{ height: '50%', minWidth: 0 }}>
+                  Monthly % Gain<br />
+                  <span style={{ color: monthlyGainPercent > 0 ? '#38a169' : monthlyGainPercent < 0 ? 'red' : undefined, fontWeight: 'bold' }}>
+                    {monthlyGainPercent.toFixed(2)}
+                  </span>
+                </Item>
+              </Grid>
+            </Grid>
+          </Box>
+          {/* Pie chart below the Box and grids */}
+          <div style={{ marginTop: 32, display: 'flex', justifyContent: 'center' }}>
+            <PieChart
+              series={[{
+                data: pieData,
+                innerRadius: 30,
+                outerRadius: 100,
+                paddingAngle: 5,
+                cornerRadius: 5,
+                startAngle: -90,
+                endAngle: 90,
+                cx: 150,
+                cy: 150,
+                // Custom label rendering for bold and colored labels
+                label: ({ data }) => (
+                  <text
+                    x={data.cx}
+                    y={data.cy - 110 + data.id * 30}
+                    textAnchor="middle"
+                    fontWeight="bold"
+                    fontSize="16"
+                    fill={data.label === 'Profit' ? '#38a169' : '#dc2626'}
+                  >
+                    {data.label}
+                  </text>
+                ),
+              }]}
+              width={300}
+              height={300}
+            />
+          </div>
+        </div>
+        {/* Part 2: Screener dropdown at top, Stocks in Screener below */}
+        <div className="bg-white rounded-lg shadow p-6 min-w-[408px] max-w-[480px] flex flex-col items-center">
+          <h2 className="text-lg font-bold mb-2 text-center">Screener</h2>
+          <div className="w-full flex flex-col items-center mb-4">
+            <label htmlFor="screener-dropdown" className="font-medium mb-2 text-center">Select Screener:</label>
             <select
               id="screener-dropdown"
-              className="select select-bordered w-full max-w-xs"
+              className="select select-bordered w-full max-w-[220px]"
               value={selectedScreener}
-              onChange={e => setSelectedScreener(e.target.value)}
+              onChange={e => { setSelectedScreener(e.target.value); setStocksPage(1); }}
             >
-              {screeners.length === 0 && <option value="">No screeners available</option>}
+              <option value="">Select Screener</option>
+              {screeners.length === 0 && <option value="" disabled>No screeners available</option>}
               {screeners.map((screener) => (
                 <option key={screener.id || screener.screener_name} value={screener.screener_name}>
                   {screener.screener_name}
@@ -394,37 +533,49 @@ export default function AlgoTradeUI() {
               ))}
             </select>
           </div>
-          {/* Stocks table for selected screener */}
-          <div className="mt-2">
-            <h3 className="text-md font-semibold mb-2">Stocks in Screener</h3>
-            {loadingStocks ? (
-              <div>Loading stocks...</div>
-            ) : screenerStocks.length === 0 ? (
-              <div className="text-gray-500">No stocks found for this screener.</div>
-            ) : (
-              <table className="table w-full">
-                <thead>
-                  <tr>
-                    <th>Stock</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {screenerStocks.map((stock, idx) => (
-                    <tr key={stock + idx}>
-                      <td>{stock}</td>
-                      <td>
-                        <button className="btn btn-primary btn-xs" onClick={() => handleTradeStock(stock)}>
-                          Trade
-                        </button>
-                      </td>
+          <h3 className="text-md font-semibold mb-2 text-center">Stocks in Screener</h3>
+          {loadingStocks ? (
+            <div className="text-center">Loading stocks...</div>
+          ) : screenerStocks.length === 0 ? (
+            <div className="text-gray-500 text-center">No stocks found for this screener.</div>
+          ) : (
+            <>
+              <div className="flex justify-center">
+                <table className="table" style={{ marginLeft: '0px', marginRight: '0px', minWidth: '340px', maxWidth: '520px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '160px', padding: '8px 16px', fontSize: '1.05em', textAlign: 'center' }}>Stock</th>
+                      <th style={{ width: '120px', padding: '8px 16px', fontSize: '1.05em', textAlign: 'center' }}>Action</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+                  </thead>
+                  <tbody>
+                    {paginatedStocks.map((stock, idx) => (
+                      <tr key={stock + idx} style={{ height: '40px' }}>
+                        <td style={{ padding: '8px 16px', fontSize: '1.05em', textAlign: 'center' }}>{stock}</td>
+                        <td style={{ padding: '8px 16px', textAlign: 'center' }}>
+                          <button className="btn btn-primary btn-sm" style={{ minWidth: '60px', fontSize: '1em', padding: '6px 12px' }} onClick={() => handleTradeStock(stock)}>
+                            Trade
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Pagination controls */}
+              <div className="flex flex-col items-center mt-2">
+                <div className="flex justify-center items-center mb-1">
+                  <button className="btn btn-xs mr-2" disabled={stocksPage === 1} onClick={() => setStocksPage(stocksPage - 1)}>Prev</button>
+                  <span>Page {stocksPage} of {totalPages}</span>
+                  <button className="btn btn-xs ml-2" disabled={stocksPage === totalPages} onClick={() => setStocksPage(stocksPage + 1)}>Next</button>
+                </div>
+                <div className="text-sm text-gray-600">Total stocks: {screenerStocks.length}</div>
+              </div>
+            </>
+          )}
         </div>
+      </div>
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Top summary and input fields in table format */}
         <div className="bg-white rounded-lg shadow p-6">
           {/* ...existing code... */}
@@ -496,8 +647,13 @@ export default function AlgoTradeUI() {
                     <td>{row.stb_ipt}</td>
                     <td>{row.stb}</td>
                     <td><input className="input input-bordered w-full" type="number" value={row.sb ?? ""} onChange={e => {
+                      let val = Number(e.target.value);
+                      if (val > row.stb) {
+                        alert('SB cannot be greater than STB. Value will be reset to 0.');
+                        val = 0;
+                      }
                       const updated = [...entries];
-                      updated[idx] = computeRow({ ...row, sb: e.target.value });
+                      updated[idx] = computeRow({ ...row, sb: val });
                       setEntries(updated);
                     }} /></td>
                     <td>{row.invested}</td>
@@ -553,7 +709,9 @@ export default function AlgoTradeUI() {
                       updated[idx] = computeRow({ ...row, exit_date: e.target.value });
                       setEntries(updated);
                     }} /></td>
-                    <td>{row.booked}</td>
+                    <td style={{ color: Number(row.booked) > 0 ? '#38a169' : Number(row.booked) < 0 ? 'red' : undefined }}>
+                      {row.booked}
+                    </td>
                     <td>{row.rr}</td>
                     <td>{getTenure(row.entry_date, row.exit_date)}</td>
                     <td><input className="input input-bordered w-full" value={row.remarks ?? ""} onChange={e => {
@@ -562,13 +720,29 @@ export default function AlgoTradeUI() {
                       setEntries(updated);
                     }} /></td>
                     <td>
-                      {/* FIXME: Check from the database it the entry is present and then only display buy/save */}
-                      {row.id && typeof row.id === 'number' ? (
-                        <button className="btn btn-success btn-xs mr-2" onClick={() => handleSaveRow(row, idx)}>Save</button>
-                      ) : (
-                        <button className="btn btn-primary btn-xs mr-2" onClick={() => handleBuyRow(row, idx)}>Buy</button>
-                      )}
-                      <button className="btn btn-error btn-xs" onClick={() => handleDeleteRow(row, idx)}>Delete</button>
+                      {/* Arrange Save/Buy and Delete icons horizontally using flex */}
+                      <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
+                        {row.id && typeof row.id === 'number' ? (
+                          <button className="btn btn-success btn-xs" onClick={() => handleSaveRow(row, idx)}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" fill="#e0f2fe" />
+                              <path d="M6 3v5a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3" />
+                              <line x1="9" y1="15" x2="15" y2="15" />
+                              <line x1="9" y1="19" x2="15" y2="19" />
+                            </svg>
+                          </button>
+                        ) : (
+                          <button className="btn btn-primary btn-xs" onClick={() => handleBuyRow(row, idx)}>Buy</button>
+                        )}
+                        <button className="btn btn-error btn-xs" onClick={() => handleDeleteRow(row, idx)}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+                            <rect x="3" y="6" width="18" height="15" rx="2" fill="#fee2e2" />
+                            <path d="M9 10v6M15 10v6" stroke="#dc2626" />
+                            <path d="M4 6h16" stroke="#dc2626" />
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="#dc2626" />
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

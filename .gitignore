@@ -6,3 +6,4 @@ __pycache__/
 *.pyd
 /algotrader/backend/trading/__pycache__/
 /algotrader/backend/trading/utils/__pycache__/
+node_modules
