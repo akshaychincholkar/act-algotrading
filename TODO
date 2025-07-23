@@ -5,10 +5,10 @@ Todo:
   ✔ List the trades for the user @done(25-07-22 11:08)
   ✔ Create token generation and validation logic @done(25-07-22 11:08)
   ☐ UI Enhancements
-    ☐ TODO: Add the pop-up validations to the trade taken @started(25-07-23 00:59)
-    ☐ TODO: Add the colors for the P&L
-    ☐ TODO: Add the richness to the UI for tables and displays
-    ☐ TODO: Showcase the pie chart for the P&L
+    ✔ TODO: Add the pop-up validations to the trade taken @started(25-07-23 00:59) @done(25-07-23 10:47) @lasted(9h48m2s)
+    ✔ TODO: Add the colors for the P&L @done(25-07-23 10:47)
+    ✔ TODO: Add the richness to the UI for tables and displays @done(25-07-23 10:47)
+    ✔ TODO: Showcase the pie chart for the P&L @done(25-07-23 10:47)
     ☐ TODO: Pop should be smooth and not abrupt
     ☐ TODO: Mouse hover to the acronym icon to show the details of the trade
     ☐ TODO: Add the Pie chart for the total value
@@ -19,10 +19,15 @@ Todo:
     ☐ TODO: Create the separate buttons to view into the groww and zerodha
     ☐ TODO: Add the GTT orders to the trades while buying the stocks
     ☐ TODO: Add the total profit stats too
+    ☐ TODO: Sell feature in the trading once user marks as loss or profit
+    ☐ TODO: Scheduled Buy or sell of the stocks
+    ☐ TODO: Django admin panel to view the trades and user details (SQLLite)
+    ☐ TODO: Introduce new feature to view the charts of the trades with the help of the tradingview API with setup
+    ☐ TODO: List the charts of the trades based upon the charting library used (Chart Patterns)
 
   ☐ Fixes
     ☐ FIXME: /user_roi and /screener APIs are working without authentication, need to fix it
-    ☐ FIXME:Remove the unwanted screeners
+    ☐ FIXME: Remove the unwanted screeners
     ☐ FIXME: Check from the database if the entry is present and then only display buy/save
     ☐ FIXME: When you click on the save button for the trade, it also saves user_roi data, however, it takes away the data from the row which is not yet saved.
 
