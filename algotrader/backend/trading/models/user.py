@@ -5,7 +5,6 @@ class User(models.Model):
     user_shortname = models.CharField(max_length=50, blank=True, null=True)
     user_id = models.CharField(max_length=20)
     email = models.EmailField()
-    access_token = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.user_name} ({self.email})"

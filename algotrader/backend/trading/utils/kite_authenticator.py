@@ -1,44 +1,75 @@
-import datetime
-from ..models import User, Authenticator
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+import json
+from ..models.authenticator import Authenticator
+from ..models import GlobalParameters
+@csrf_exempt
+def get_all_users(request):
+    if request.method == 'GET':
+        try:
+            users = list(Authenticator.objects.values('user_id', 'api_key'))
+            return JsonResponse({'users': users}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
 
-api_key = "j1z0yebn5wxfo74p"
-api_secret = "po7qh93sse3jnjfmuyy4vdsjtpkcwobk"
 
-def is_user_authenticated_today(user_id):
-    today = datetime.date.today()
-    try:
-        auth = Authenticator.objects.get(user_id=user_id, date=today)
-        return True
-    except Authenticator.DoesNotExist:
-        return False
+@csrf_exempt
+def register_user(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            api_key = data.get('api_key')
+            api_secret = data.get('api_secret')
+            user_id = data.get('user_id')
 
-def authenticate_and_create_user():
-    # Dummy user data
-    user, created = User.objects.get_or_create(
-        email_id="dummyuser@example.com",
-        defaults={
-            "first_name": "Dummy",
-            "last_name": "User",
-            "phone_no": "9999999999",
-            "broker_id": "DUMMYBROKER",
-            "access_token": ""
-        }
-    )
-    #TODO: http://localhost:5173/?action=login&type=login&status=success&request_token=ZJAO45lBioBh6pEculQFeRhP4XwETQwc
-    # Check if already authenticated for today
-    if is_user_authenticated_today(user.id):
-        print("User already authenticated for today.")
-        return user
-    # Simulate Kite authentication (replace with actual API call)
-    # Here, just set access_token to a dummy value
-    kite_access_token = f"{api_key}:{api_secret}:dummy_token"
-    user.access_token = kite_access_token
-    user.save()
-    # Create Authenticator entry for today
-    Authenticator.objects.create(user=user, access_token=kite_access_token, date=datetime.date.today())
-    print("User authenticated and Authenticator entry created.")
-    return user
+            if not all([api_key, api_secret, user_id]):
+                return JsonResponse({'error': 'Missing required fields'}, status=400)
 
-# Example usage:
-if __name__ == "__main__":
-    authenticate_and_create_user()
+            # Create or update Authenticator entry
+            obj, created = Authenticator.objects.update_or_create(
+                user_id=user_id,
+                defaults={
+                    'api_key': api_key,
+                    'api_secret': api_secret
+                }
+            )
+            return JsonResponse({'message': 'User registered successfully', 'created': created}, status=201)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+
+@csrf_exempt
+def set_logged_in_user(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            user_id = data.get('user_id')
+            is_active = data.get('isActive')
+
+            if user_id is None or is_active is None:
+                return JsonResponse({'error': 'Missing required fields: user_id and isActive'}, status=400)
+
+            if is_active:
+                # Set the logged-in user
+                GlobalParameters.objects.update_or_create(
+                    key='logged-in-user',
+                    defaults={'value': user_id}
+                )
+                message = f'User {user_id} set as active logged-in user'
+            else:
+                # Clear the logged-in user (set to None)
+                GlobalParameters.objects.update_or_create(
+                    key='logged-in-user',
+                    defaults={'value': None}
+                )
+                message = 'Logged-in user cleared'
+
+            return JsonResponse({'message': message}, status=200)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    else:
+        return JsonResponse({'error': 'Invalid request method'}, status=405)

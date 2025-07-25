@@ -51,8 +51,8 @@ def fetch_chartink_screener(screener_name):
         data = response.json()
         stocks = [row["nsecode"] for row in data["data"]]
         print(f"Stocks from screener: ")
-        for stock in stocks:
-            print(stock)
+        # for stock in stocks:
+            # print(stock)
         return stocks
     except Exception as e:
         print("Failed to fetch screener data:", e)
