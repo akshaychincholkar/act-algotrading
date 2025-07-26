@@ -169,46 +169,111 @@ export default function UserROI() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <form className="bg-white p-8 rounded shadow-md w-full max-w-lg" onSubmit={handleSubmit}>
-        <h2 className="text-2xl font-bold mb-6">User ROI Entry</h2>
-        {Object.keys(initialState).map((key) => (
-          <div className="mb-4" key={key}>
-            <label className="block mb-1 font-semibold capitalize" htmlFor={key}>{key.replace(/_/g, " ")}</label>
-            <input
-              className="input input-bordered w-full"
-              type="number"
-              step="0.01"
-              id={key}
-              name={key}
-              value={form[key]}
-              onChange={handleChange}
-            />
+    <div style={{
+      minHeight: '100vh',
+      width: '100vw',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #e0e7ff 0%, #f8fafc 100%)',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      zIndex: 10,
+    }}>
+      <div style={{
+        border: '3px solid #2563eb',
+        borderRadius: '24px',
+        background: '#fff',
+        padding: '48px 36px',
+        boxShadow: '0 4px 24px rgba(37,99,235,0.08)',
+        maxWidth: '900px',
+        width: '90%',
+        textAlign: 'center',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        paddingTop: '60px',
+      }}>
+        <h2 className="text-2xl font-bold mb-6" style={{ color: '#2563eb', textAlign: 'center', fontSize: '2.2em', fontWeight: 800, letterSpacing: '0.02em', marginBottom: '32px', marginTop: '0px' }}>Investment Plan</h2>
+        
+        <form onSubmit={handleSubmit} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', width: '100%', marginBottom: '32px' }}>
+            {Object.keys(initialState).map((key) => (
+              <div className="mb-4" key={key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <label className="block mb-1 font-semibold capitalize" style={{ color: '#2563eb', fontSize: '1.1em', marginBottom: '8px' }} htmlFor={key}>{key.replace(/_/g, " ")}</label>
+                <input
+                  className="input input-bordered w-full"
+                  style={{ 
+                    background: '#fff', 
+                    border: '2px solid #2563eb', 
+                    color: '#2563eb', 
+                    fontSize: '1.13em',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    textAlign: 'center',
+                    maxWidth: '250px',
+                    fontWeight: 600
+                  }}
+                  type="number"
+                  step="0.01"
+                  id={key}
+                  name={key}
+                  value={form[key]}
+                  onChange={handleChange}
+                />
+              </div>
+            ))}
           </div>
-        ))}
-        <button className="btn btn-primary w-full" type="submit">Save</button>
-        <button className="btn btn-secondary w-full mt-4" type="button" onClick={() => navigate('/trade')}>Back</button>
-        {message && <div className="mt-4 text-center font-semibold">{message}</div>}
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', alignItems: 'center', width: '100%', maxWidth: '400px' }}>
+            <button 
+              className="btn btn-primary w-full" 
+              type="submit"
+              style={{
+                background: '#e3f0ff',
+                color: '#2563eb',
+                fontWeight: 700,
+                fontSize: '1.15em',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '14px 0',
+                width: '80%',
+                boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+            >
+              Save
+            </button>
+          </div>
+          {message && <div className="mt-4 text-center font-semibold" style={{ color: '#2563eb', fontSize: '1.1em', marginTop: '20px' }}>{message}</div>}
+        </form>
+
         {/* Screener Table */}
-        <div className="mt-8">
-          <h3 className="text-xl font-bold mb-2">Screeners</h3>
-          <div className="overflow-x-auto">
-            <table className="table w-full">
+        <div className="mt-8" style={{ width: '100%', marginTop: '40px' }}>
+          <h3 className="text-xl font-bold mb-2" style={{ color: '#2563eb', fontSize: '1.8em', textAlign: 'center', marginBottom: '24px', fontWeight: 700 }}>Screeners</h3>
+          <div className="overflow-x-auto" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            <table className="table w-full" style={{ background: '#fff', border: '2px solid #2563eb', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <thead>
-                <tr>
+                <tr style={{ background: '#e3f0ff' }}>
                   {screenerTableColumns.map(col => (
-                    <th key={col} className="capitalize">{col.replace(/_/g, " ")}</th>
+                    <th key={col} className="capitalize" style={{ color: '#2563eb', fontSize: '1.1em', padding: '12px', borderBottom: '2px solid #2563eb', fontWeight: 700 }}>{col.replace(/_/g, " ")}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {screeners.length === 0 ? (
-                  <tr><td colSpan={screenerTableColumns.length} className="text-center">No screeners found</td></tr>
+                  <tr><td colSpan={screenerTableColumns.length} className="text-center" style={{ color: '#2563eb', fontSize: '1.1em', padding: '20px' }}>No screeners found</td></tr>
                 ) : (
                   screeners.map((screener, idx) => (
-                    <tr key={idx}>
+                    <tr key={idx} style={{ borderBottom: '1px solid #e3f0ff' }}>
                       {screenerTableColumns.map(col => (
-                        <td key={col}>{screener[col]?.toString() || ""}</td>
+                        <td key={col} style={{ color: '#2563eb', fontSize: '1.05em', padding: '12px', textAlign: 'center' }}>{screener[col]?.toString() || ""}</td>
                       ))}
                     </tr>
                   ))
@@ -216,29 +281,130 @@ export default function UserROI() {
               </tbody>
             </table>
           </div>
-          <button className="btn btn-accent w-full mt-4" type="button" onClick={() => setShowAddModal(true)}>Add Screener</button>
+          <div style={{ display: 'flex', gap: '20px', alignItems: 'center', justifyContent: 'center', width: '100%', marginTop: '24px' }}>
+            <button 
+              className="btn btn-accent" 
+              type="button" 
+              onClick={() => setShowAddModal(true)}
+              style={{
+                background: '#e3f0ff',
+                color: '#2563eb',
+                fontWeight: 700,
+                fontSize: '1.15em',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '14px 24px',
+                boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+            >
+              Add Screener
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              type="button" 
+              onClick={() => navigate('/trade')}
+              style={{
+                background: '#e3f0ff',
+                color: '#2563eb',
+                fontWeight: 700,
+                fontSize: '1.15em',
+                border: 'none',
+                borderRadius: '16px',
+                padding: '14px 24px',
+                boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+              }}
+            >
+              Back
+            </button>
+          </div>
         </div>
-      </form>
+      </div>
 
       {/* Add Screener Modal */}
       {showAddModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-          <div className="bg-white p-6 rounded shadow-md w-full max-w-md">
-            <h3 className="text-lg font-bold mb-4">Add Screener</h3>
+          <div style={{
+            border: '3px solid #2563eb',
+            borderRadius: '24px',
+            background: '#fff',
+            padding: '36px 28px',
+            boxShadow: '0 4px 24px rgba(37,99,235,0.08)',
+            maxWidth: '420px',
+            width: '90%',
+            textAlign: 'center',
+            margin: '0 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <h3 className="text-lg font-bold mb-4" style={{ color: '#2563eb', fontSize: '1.8em', fontWeight: 800, letterSpacing: '0.02em', marginBottom: '24px' }}>Add Screener</h3>
             <input
               className="input input-bordered w-full mb-2"
+              style={{ 
+                background: '#fff', 
+                border: '2px solid #2563eb', 
+                color: '#2563eb', 
+                fontSize: '1.13em',
+                borderRadius: '12px',
+                padding: '12px',
+                textAlign: 'center',
+                marginBottom: '20px',
+                fontWeight: 600,
+                width: '80%'
+              }}
               type="text"
               placeholder="Screener Name"
               value={screenerName}
               onChange={e => setScreenerName(e.target.value)}
               disabled={addLoading}
             />
-            {addError && <div className="text-red-500 mb-2">{addError}</div>}
-            <div className="flex gap-2">
-              <button className="btn btn-primary flex-1" onClick={handleAddScreener} disabled={addLoading || !screenerName}>
+            {addError && <div className="text-red-500 mb-2" style={{ fontSize: '1.05em', marginBottom: '16px' }}>{addError}</div>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', width: '100%' }}>
+              <button 
+                className="btn btn-primary flex-1" 
+                onClick={handleAddScreener} 
+                disabled={addLoading || !screenerName}
+                style={{
+                  background: '#e3f0ff',
+                  color: '#2563eb',
+                  fontWeight: 700,
+                  fontSize: '1.1em',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '12px 0',
+                  width: '80%',
+                  boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+              >
                 {addLoading ? "Verifying..." : "Verify & Add"}
               </button>
-              <button className="btn btn-secondary flex-1" onClick={() => setShowAddModal(false)} disabled={addLoading}>Cancel</button>
+              <button 
+                className="btn btn-secondary flex-1" 
+                onClick={() => setShowAddModal(false)} 
+                disabled={addLoading}
+                style={{
+                  background: '#e3f0ff',
+                  color: '#2563eb',
+                  fontWeight: 700,
+                  fontSize: '1.1em',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '12px 0',
+                  width: '80%',
+                  boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s',
+                }}
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

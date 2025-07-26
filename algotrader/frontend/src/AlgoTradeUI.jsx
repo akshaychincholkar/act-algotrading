@@ -1060,8 +1060,51 @@ const pieData = [
                     <td>
                       {/* Arrange Save/Buy and Delete icons horizontally using flex */}
                       <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px' }}>
-                        {row.id && typeof row.id === 'number' ? (
+                        {/* {(row.id && typeof row.id === 'number') ?  */}
+                        {(!row.id && typeof row.id !== 'number') ? 
+                        (
                           <button 
+                            className="btn btn-xs" 
+                            onClick={() => handleBuyRow(row, idx)}
+                            style={{
+                              background: '#e3f0ff',
+                              color: '#2563eb',
+                              fontWeight: 700,
+                              fontSize: '0.85em',
+                              border: 'none',
+                              borderRadius: '12px',
+                              padding: '6px 12px',
+                              boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
+                              cursor: 'pointer',
+                              transition: 'background 0.2s',
+                            }}
+                          >
+                            Buy
+                          </button>
+                        )
+                        : (<></>)
+                        // (
+                        //   <button 
+                        //     className="btn btn-xs" 
+                        //     onClick={() => handleBuyRow(row, idx)}
+                        //     style={{
+                        //       background: '#e3f0ff',
+                        //       color: '#2563eb',
+                        //       fontWeight: 700,
+                        //       fontSize: '0.85em',
+                        //       border: 'none',
+                        //       borderRadius: '12px',
+                        //       padding: '6px 12px',
+                        //       boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
+                        //       cursor: 'pointer',
+                        //       transition: 'background 0.2s',
+                        //     }}
+                        //   >
+                        //     Buy
+                        //   </button>
+                        // )
+                        }
+                                                  <button 
                             className="btn btn-xs" 
                             onClick={() => handleSaveRow(row, idx)}
                             style={{
@@ -1083,26 +1126,6 @@ const pieData = [
                               <line x1="9" y1="19" x2="15" y2="19" />
                             </svg>
                           </button>
-                        ) : (
-                          <button 
-                            className="btn btn-xs" 
-                            onClick={() => handleBuyRow(row, idx)}
-                            style={{
-                              background: '#e3f0ff',
-                              color: '#2563eb',
-                              fontWeight: 700,
-                              fontSize: '0.85em',
-                              border: 'none',
-                              borderRadius: '12px',
-                              padding: '6px 12px',
-                              boxShadow: '0 2px 8px rgba(37,99,235,0.08)',
-                              cursor: 'pointer',
-                              transition: 'background 0.2s',
-                            }}
-                          >
-                            Buy
-                          </button>
-                        )}
                         <button 
                           className="btn btn-xs" 
                           onClick={() => handleDeleteRow(row, idx)}
