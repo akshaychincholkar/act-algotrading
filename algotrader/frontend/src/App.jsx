@@ -8,6 +8,7 @@ import UserROI from './UserROI';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Toolbar from '@mui/material/Toolbar';
+import { getApiUrl, FRONTEND_BASE_URL } from './config/api';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Menu from '@mui/material/Menu';
@@ -35,7 +36,7 @@ function RegisterPage() {
     setError("");
     setSuccess("");
     try {
-      const res = await fetch("http://localhost:8000/api/register-user", {
+      const res = await fetch(getApiUrl("api/register-user"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ api_key: apiKey, api_secret: apiSecret, user_id: userId })
@@ -80,7 +81,7 @@ function RegisterPage() {
           </div>
           <div style={{ marginBottom: 8 }}>
             <strong>Fill App Details</strong><br />
-            Redirect URL: <span style={{ color: '#2563eb', fontWeight: 700 }}>http://localhost:5173/trade</span><br />
+            Redirect URL: <span style={{ color: '#2563eb', fontWeight: 700 }}>{FRONTEND_BASE_URL}/trade</span><br />
             Description and your Zerodha Client ID
           </div>
           <div style={{ marginBottom: 8 }}>

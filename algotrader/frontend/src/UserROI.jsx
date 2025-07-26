@@ -1,6 +1,7 @@
 // import React, { useState } from "react";
 
 import React, { useState, useEffect } from "react";
+import { getApiUrl } from './config/api';
 const screenerTableColumns = [
   "screener_name",
   "created_by",
@@ -56,7 +57,7 @@ export default function UserROI() {
 
   // Fetch all screener entries on mount
   useEffect(() => {
-    axios.get("http://localhost:8000/api/screener/")
+    axios.get(getApiUrl("api/screener/"))
       .then(res => setScreeners(res.data))
       .catch(() => setScreeners([]));
   }, []);
@@ -125,7 +126,7 @@ export default function UserROI() {
       }
     });
     try {
-      await axios.post("http://localhost:8000/api/user_roi/", payload);
+      await axios.post(getApiUrl("api/user_roi/"), payload);
       setMessage("Saved successfully!");
       alert("Saved successfully!");
     } catch (err) {
@@ -151,10 +152,10 @@ export default function UserROI() {
       //    { screener_name: screenerName, user_id: userId }
       // );
       // const res = await axios.post("http://localhost:8000/api/screener/", { user_id: userId, screener_name: screenerName });
-      const res = await axios.post("http://localhost:8000/api/screener/", payload);
+      const res = await axios.post(getApiUrl("api/screener/"), payload);
       if (res.data.success) {
         // Refresh screener list
-        const listRes = await axios.get("http://localhost:8000/api/screener/");
+        const listRes = await axios.get(getApiUrl("api/screener/"));
         setScreeners(listRes.data);
         setScreenerName("");
         setShowAddModal(false);

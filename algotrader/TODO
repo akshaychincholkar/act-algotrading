@@ -9,12 +9,12 @@ Todo:
     ✔ TODO: Add the colors for the P&L @done(25-07-23 10:47)
     ✔ TODO: Add the richness to the UI for tables and displays @done(25-07-23 10:47)
     ✔ TODO: Showcase the pie chart for the P&L @done(25-07-23 10:47)
-    ☐ TODO: Pop should be smooth and not abrupt
+    ☐ TODO: Pop up should be smooth and not abrupt
     ☐ TODO: Mouse hover to the acronym icon to show the details of the trade
-    ☐ TODO: Add the Pie chart for the total value
+    ✔ TODO: Add the Pie chart for the total value @done(25-07-26 20:09)
     ✔ TODO: Refine the entire trade UI and registration UI. @done(25-07-26 02:31)
     ✔ TODO: Add Hello Username to the top of the page @started(25-07-26 03:30) @done(25-07-26 03:57) @lasted(27m6s)
-    ☐ TODO: settings page polishing
+    ✔ TODO: settings page polishing @started(25-07-26 20:06) @done(25-07-26 20:06) @lasted(56s)
 
   ☐ Features
     ☐ TODO: Add the monthly view to the user trades by filtering the trades

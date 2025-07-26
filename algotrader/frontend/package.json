@@ -1,19 +1,29 @@
 {
   "name": "trade-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "vite preview --port 3000 --host",
+    "serve": "npm run build && npm run start",
+    "build:prod": "vite build --mode production",
+    "build:staging": "vite build --mode staging",
+    "build:railway": "npm ci && vite build --mode production",
+    "build:render": "VITE_API_URL=https://algotrading-backend.onrender.com vite build --mode production",
+    "build:do": "npm ci && vite build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postbuild": "echo 'Build completed successfully!'"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.2.0",
     "@mui/material": "^7.2.0",
+    "@mui/x-charts": "^8.8.0",
     "@mui/x-data-grid": "^8.8.0",
     "@mui/x-date-pickers": "^8.9.0",
     "@shadcn/ui": "^0.0.4",
@@ -39,5 +49,24 @@
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.11",
     "vite": "^7.0.4"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "homepage": ".",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/akshaychincholkar/act-algotrading.git"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "trading",
+    "algotrading",
+    "mui",
+    "tailwind"
+  ],
+  "author": "Akshay Chincholkar",
+  "license": "MIT"
 }

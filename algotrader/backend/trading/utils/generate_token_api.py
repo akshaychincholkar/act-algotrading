@@ -116,6 +116,13 @@ def generate_token(request):
             }
         )
         
+        # Update Authenticator table with access_token
+        print(f"Debug - Saving access_token for user {user_id}: {access_token[:20]}...")  # Only show first 20 chars for security
+        auth_update_result = Authenticator.objects.filter(user_id=user_id).update(
+            access_token=access_token
+        )
+        print(f"Debug - Authenticator update result: {auth_update_result} record(s) updated")
+        
         # Return response with the correct user_id
         return JsonResponse({
             'access_token': access_token, 

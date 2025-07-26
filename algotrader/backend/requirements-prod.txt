@@ -1,0 +1,47 @@
+# Production-only requirements for AlgoTrading Backend
+# This file contains minimal dependencies needed for production deployment
+
+# Core Django and API dependencies
+Django==5.1.1
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+asgiref==3.8.1
+sqlparse==0.5.1
+tzdata==2023.3
+python-dateutil==2.8.2
+pytz==2023.3.post1
+
+# Production web server
+gunicorn==22.0.0
+whitenoise==6.6.0
+
+# Database support (PostgreSQL for production)
+psycopg2-binary==2.9.10
+
+# HTTP requests and API
+requests==2.31.0
+urllib3==2.5.0
+
+# Trading and financial APIs
+kiteconnect==5.0.1
+yfinance==0.2.33
+yahoo-fin==0.8.9.1
+
+# Data processing (minimal for production)
+pandas==2.1.4
+numpy==1.26.2
+
+# Task scheduling (if using background jobs)
+celery==5.4.0
+redis==5.0.1
+
+# Environment and configuration
+python-dotenv==1.1.0
+
+# Security
+cryptography==45.0.5
+certifi==2025.7.14
+
+# Essential utilities
+six==1.16.0
+typing_extensions==4.14.1

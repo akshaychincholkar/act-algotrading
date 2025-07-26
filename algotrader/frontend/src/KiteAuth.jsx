@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from "react";
 import Alert from '@mui/material/Alert';
+import { getApiUrl, REDIRECT_URL } from './config/api';
 
 // const KITE_API_KEY = "j1z0yebn5wxfo74p"; //Akshay
 const KITE_API_KEY = "fjv1pqiea13qoapa"; //Nita
-const REDIRECT_URL = "http://localhost:5173/trade"; // Must match the one set in Kite dev portal
 
 function KiteAuth() {
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/users")
+    fetch(getApiUrl("api/users"))
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data.users)) {
@@ -66,7 +66,7 @@ function KiteAuth() {
     try {
       setLoading(true);
       // First, call the set-active-user API
-      const response = await fetch("http://localhost:8000/api/set-active-user/", {
+      const response = await fetch(getApiUrl("api/set-active-user/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 

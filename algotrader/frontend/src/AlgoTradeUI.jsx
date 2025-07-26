@@ -18,6 +18,7 @@ import Paper from '@mui/material/Paper';
 import Grid from '@mui/material/Grid';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { getApiUrl } from './config/api';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
@@ -275,7 +276,7 @@ export default function AlgoTradeUI() {
       quantity: row.sb && Number(row.sb) > 0 ? Number(row.sb) : 1
     };
     try {
-      const response = await axios.post('http://localhost:8000/api/stock/buy', payload);
+      const response = await axios.post(getApiUrl('api/stock/buy'), payload);
       if (response.status === 200) {
         // Simulate DB save: set id to a dummy value to show Save button
         const updated = [...entries];
@@ -323,7 +324,7 @@ export default function AlgoTradeUI() {
       return;
     }
     setLoadingStocks(true);
-    axios.get(`http://localhost:8000/api/stocks?screener_name=${encodeURIComponent(selectedScreener)}`)
+    axios.get(getApiUrl(`api/stocks?screener_name=${encodeURIComponent(selectedScreener)}`))
       .then(res => {
         if (res.data && Array.isArray(res.data.stocks)) {
           setScreenerStocks(res.data.stocks);
@@ -346,7 +347,7 @@ export default function AlgoTradeUI() {
 
   // Fetch all screeners on mount
   useEffect(() => {
-    axios.get("http://localhost:8000/api/screener/")
+    axios.get(getApiUrl("api/screener/"))
       .then(res => {
         if (Array.isArray(res.data)) {
           setScreeners(res.data);
@@ -362,7 +363,7 @@ export default function AlgoTradeUI() {
     const params = new URLSearchParams(window.location.search);
     const requestToken = params.get("request_token");
     if (requestToken) {
-      axios.post("http://localhost:8000/api/generate-token/", { request_token: requestToken })
+      axios.post(getApiUrl("api/generate-token/"), { request_token: requestToken })
         .then(res => {
           setAccessToken(res.data.access_token);
           localStorage.setItem("accessToken", res.data.access_token);
@@ -382,7 +383,7 @@ export default function AlgoTradeUI() {
       // If user is already set, fetch trades and ROI for user
       const kiteUser = user || (localStorage.getItem("kiteUser") ? JSON.parse(localStorage.getItem("kiteUser")) : null);
       if (kiteUser && kiteUser.user_id) {
-        axios.get(`http://localhost:8000/api/trades/?user_id=${kiteUser.user_id}`)
+        axios.get(getApiUrl(`api/trades/?user_id=${kiteUser.user_id}`))
           .then(res => {
             if (Array.isArray(res.data) && res.data.length > 0) {
               setEntries(res.data);
@@ -393,7 +394,7 @@ export default function AlgoTradeUI() {
           });
         // Fetch user_roi for this user and update summary fields
         if (!roiLoaded) {
-          axios.get(`http://localhost:8000/api/user_roi/?user_id=${kiteUser.user_id}`)
+          axios.get(getApiUrl(`api/user_roi/?user_id=${kiteUser.user_id}`))
             .then(res => {
               if (res.data && typeof res.data === 'object') {
                 // Update all summary fields except user
@@ -530,7 +531,7 @@ const pieData = [
     // If the row has a database ID, call backend to delete
     if (row.id && typeof row.id === 'number') {
       try {
-        await axios.delete('http://localhost:8000/api/trades/' + row.id + '/');
+        await axios.delete(getApiUrl('api/trades/' + row.id + '/'));
         alert('Row deleted from database!');
       } catch (error) {
         alert('Failed to delete row from database.');
@@ -615,9 +616,9 @@ const pieData = [
     try {
       let response;
       if (row.id && typeof row.id === 'number') {
-        response = await axios.put('http://localhost:8000/api/trades/' + row.id + '/', tradeData);
+        response = await axios.put(getApiUrl('api/trades/' + row.id + '/'), tradeData);
       } else {
-        response = await axios.post('http://localhost:8000/api/trades/', tradeData);
+        response = await axios.post(getApiUrl('api/trades/'), tradeData);
       }
       const updated = [...entries];
       updated[index] = { ...row, ...response.data };

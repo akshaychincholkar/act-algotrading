@@ -2,17 +2,18 @@ from kiteconnect import KiteConnect
 # Import Django models
 from ..models.global_parameters import GlobalParameters
 from ..models.user import User
+from ..models.authenticator import Authenticator
 
-def get_api_key():
-    param = GlobalParameters.objects.filter(key="api_key").first()
-    return param.value if param else None
+def get_api_key(user_id):
+    authenticator = Authenticator.objects.filter(user_id=user_id).first()
+    return authenticator.api_key if authenticator else None
 
 def get_access_token(user_id):
-    user_obj = User.objects.filter(user_id=user_id).first()
-    return getattr(user_obj, "access_token", None)
+    authenticator = Authenticator.objects.filter(user_id=user_id).first()
+    return authenticator.access_token if authenticator else None
 
 def get_kite_client(user_id):
-    api_key = get_api_key()
+    api_key = get_api_key(user_id)
     access_token = get_access_token(user_id)
     if not api_key or not access_token:
         raise Exception("Missing API key or access token")
